@@ -1,0 +1,14 @@
+{
+  "name": "telegram-bot-project",
+  "version": "1.0.0",
+  "description": "A Telegram bot project that handles various commands and utilities.",
+  "main": "src/bot.js",
+  "scripts": {
+    "start": "node src/bot.js"
+  },
+  "dependencies": {
+    "node-telegram-bot-api": "^0.54.0"
+  },
+  "author": "Your Name",
+  "license": "MIT"
+}
