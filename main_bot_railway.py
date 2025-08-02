@@ -56,6 +56,33 @@ def index():
         "status": "active"
     }), 200
 
+@app.route('/railway-vars')
+def railway_vars():
+    """Показывает переменные окружения Railway для диагностики"""
+    try:
+        vars_info = {
+            "RAILWAY_PROJECT_ID": os.environ.get('RAILWAY_PROJECT_ID', 'не найдено'),
+            "RAILWAY_SERVICE_ID": os.environ.get('RAILWAY_SERVICE_ID', 'не найдено'),  
+            "RAILWAY_DEPLOYMENT_ID": os.environ.get('RAILWAY_DEPLOYMENT_ID', 'не найдено'),
+            "RAILWAY_PROJECT_NAME": os.environ.get('RAILWAY_PROJECT_NAME', 'не найдено'),
+            "RAILWAY_SERVICE_NAME": os.environ.get('RAILWAY_SERVICE_NAME', 'не найдено'),
+            "RAILWAY_PUBLIC_DOMAIN": os.environ.get('RAILWAY_PUBLIC_DOMAIN', 'не найдено'),
+            "RAILWAY_STATIC_URL": os.environ.get('RAILWAY_STATIC_URL', 'не найдено'),
+            "WEBHOOK_URL": os.environ.get('WEBHOOK_URL', 'не найдено'),
+            "PORT": os.environ.get('PORT', 'не найдено'),
+            "BOT_TOKEN": "настроен" if BOT_TOKEN else "не найден"
+        }
+        
+        return jsonify({
+            "railway_environment_variables": vars_info,
+            "recommended_webhook": f"https://telegram-bot-project-1-production.up.railway.app/webhook/{BOT_TOKEN}"
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "error": f"Ошибка получения переменных: {str(e)}"
+        }), 500
+
 @app.route('/test-send')
 def test_send():
     """Тест отправки сообщения с Railway"""
@@ -822,6 +849,9 @@ async def setup_webhook():
     # Вариант 1: Переменная WEBHOOK_URL (устанавливается вручную)
     manual_webhook = os.environ.get('WEBHOOK_URL')
     if manual_webhook:
+        # Убеждаемся, что URL начинается с https://
+        if not manual_webhook.startswith('https://'):
+            manual_webhook = f"https://{manual_webhook}"
         webhook_url = f"{manual_webhook}/webhook/{BOT_TOKEN}"
         
     # Вариант 2: RAILWAY_PUBLIC_DOMAIN (автоматически от Railway)
@@ -832,6 +862,9 @@ async def setup_webhook():
     # Вариант 3: RAILWAY_STATIC_URL (ещё один вариант от Railway)
     elif os.environ.get('RAILWAY_STATIC_URL'):
         railway_static = os.environ.get('RAILWAY_STATIC_URL')
+        # Убеждаемся, что URL правильный
+        if railway_static and not railway_static.startswith('https://'):
+            railway_static = f"https://{railway_static}"
         webhook_url = f"{railway_static}/webhook/{BOT_TOKEN}"
     
     # Вариант 4: Автодетект домена через переменные Railway
@@ -843,6 +876,12 @@ async def setup_webhook():
             auto_domain = f"{service}-{project}.up.railway.app"
             webhook_url = f"https://{auto_domain}/webhook/{BOT_TOKEN}"
             logger.info(f"🔍 Попытка автодетекта домена: {auto_domain}")
+    
+    # Вариант 5: Жестко заданный домен для нашего проекта (fallback)
+    if not webhook_url:
+        fallback_domain = "telegram-bot-project-1-production.up.railway.app"
+        webhook_url = f"https://{fallback_domain}/webhook/{BOT_TOKEN}"
+        logger.info(f"🔄 Используем fallback домен: {fallback_domain}")
     
     # В Railway всегда используем webhook, даже если нет URL
     is_railway_env = (
