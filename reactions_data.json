@@ -1,0 +1,214 @@
+{
+  "posts": {
+    "legacy_20250802": {
+      "reactions": {
+        "heart": 1,
+        "pray": 2,
+        "touched": 1
+      },
+      "reaction_users": {
+        "heart": [
+          "345470935"
+        ],
+        "pray": [
+          "1072568757",
+          "1055576836"
+        ],
+        "touched": [
+          "5112111245"
+        ]
+      }
+    },
+    "horoscope_20250802_021250": {
+      "reactions": {
+        "heart": 0,
+        "pray": 0,
+        "touched": 1
+      },
+      "reaction_users": {
+        "heart": [],
+        "pray": [],
+        "touched": [
+          "345470935"
+        ]
+      }
+    },
+    "horoscope_20250802_022058": {
+      "reactions": {
+        "heart": 0,
+        "pray": 0,
+        "touched": 1
+      },
+      "reaction_users": {
+        "heart": [],
+        "pray": [],
+        "touched": [
+          "345470935"
+        ]
+      }
+    },
+    "horoscope_20250802_022658": {
+      "reactions": {
+        "heart": 0,
+        "pray": 0,
+        "touched": 0
+      },
+      "reaction_users": {
+        "heart": [],
+        "pray": [],
+        "touched": []
+      }
+    },
+    "horoscope_20250802_022939": {
+      "reactions": {
+        "heart": 0,
+        "pray": 0,
+        "touched": 0
+      },
+      "reaction_users": {
+        "heart": [],
+        "pray": [],
+        "touched": []
+      }
+    },
+    "horoscope_20250802_023335": {
+      "reactions": {
+        "heart": 0,
+        "pray": 0,
+        "touched": 0
+      },
+      "reaction_users": {
+        "heart": [],
+        "pray": [],
+        "touched": []
+      }
+    },
+    "horoscope_20250802_024119": {
+      "reactions": {
+        "heart": 0,
+        "pray": 0,
+        "touched": 1
+      },
+      "reaction_users": {
+        "heart": [],
+        "pray": [],
+        "touched": [
+          "345470935"
+        ]
+      }
+    },
+    "horoscope_20250802_024725": {
+      "reactions": {
+        "heart": 0,
+        "pray": 0,
+        "touched": 0
+      },
+      "reaction_users": {
+        "heart": [],
+        "pray": [],
+        "touched": []
+      }
+    },
+    "horoscope_20250802_030324": {
+      "reactions": {
+        "heart": 0,
+        "pray": 1,
+        "touched": 0
+      },
+      "reaction_users": {
+        "heart": [],
+        "pray": [
+          "345470935"
+        ],
+        "touched": []
+      }
+    },
+    "test_horoscope_20250802_030849": {
+      "reactions": {
+        "heart": 0,
+        "pray": 1,
+        "touched": 0
+      },
+      "reaction_users": {
+        "heart": [],
+        "pray": [
+          "345470935"
+        ],
+        "touched": []
+      }
+    },
+    "horoscope_20250802_031027": {
+      "reactions": {
+        "heart": 0,
+        "pray": 0,
+        "touched": 0
+      },
+      "reaction_users": {
+        "heart": [],
+        "pray": [],
+        "touched": []
+      }
+    },
+    "horoscope_20250802_031344": {
+      "reactions": {
+        "heart": 2,
+        "pray": 1,
+        "touched": 1
+      },
+      "reaction_users": {
+        "heart": [
+          "6532086438",
+          "1418296095"
+        ],
+        "pray": [
+          "345470935"
+        ],
+        "touched": [
+          "1072568757"
+        ]
+      }
+    },
+    "horoscope_20250802_032544": {
+      "reactions": {
+        "heart": 0,
+        "pray": 0,
+        "touched": 1
+      },
+      "reaction_users": {
+        "heart": [],
+        "pray": [],
+        "touched": [
+          "345470935"
+        ]
+      }
+    },
+    "test_post_456": {
+      "reactions": {
+        "heart": 1,
+        "pray": 0,
+        "touched": 0
+      },
+      "reaction_users": {
+        "heart": [
+          "test_user_123"
+        ],
+        "pray": [],
+        "touched": []
+      }
+    },
+    "post_456": {
+      "reactions": {
+        "heart": 1,
+        "pray": 0,
+        "touched": 0
+      },
+      "reaction_users": {
+        "heart": [
+          "test_123"
+        ],
+        "pray": [],
+        "touched": []
+      }
+    }
+  }
+}
