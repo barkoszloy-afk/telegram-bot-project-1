@@ -527,8 +527,8 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not query:
         return
         
-    # Подтверждаем нажатие кнопки коротким уведомлением
-    await query.answer("Главное меню")
+    # Подтверждаем нажатие без показа уведомления
+    await query.answer()
         
     # Получаем имя пользователя
     user_name = "друг"
