@@ -100,11 +100,16 @@ def setup_webhook_route():
                             
                             # Обрабатываем update
                             if application:
+                                logger.info(f"🔄 Начинаем обработку {update_type}")
                                 new_loop.run_until_complete(application.process_update(update))
                                 logger.info(f"✅ Webhook обработал {update_type}")
+                            else:
+                                logger.error("❌ Application отсутствует при обработке")
                             
                         except Exception as e:
                             logger.error(f"❌ Ошибка async обработки: {e}")
+                            import traceback
+                            logger.error(f"Traceback: {traceback.format_exc()}")
                         finally:
                             # Безопасно закрываем loop
                             if new_loop and not new_loop.is_closed():
@@ -208,6 +213,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 /start - Приветствие и главное меню с категориями
 /help - Показать эту справку
+/test - Тест работы бота
 /admin - Админ-панель (только для администратора)
 
 📱 Как пользоваться:
@@ -219,11 +225,30 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 💫 Откройте для себя мир саморазвития!
 """
-        await update.message.reply_text(help_text)
-        logger.info("✅ Справка отправлена")
+        
+        try:
+            result = await update.message.reply_text(help_text)
+            logger.info(f"✅ Справка отправлена, message_id: {result.message_id if result else 'unknown'}")
+        except Exception as send_error:
+            logger.error(f"❌ Ошибка отправки справки: {send_error}")
+            # Попробуем отправить простую справку
+            try:
+                simple_help = "📋 Бот работает! Используйте /start для главного меню."
+                await update.message.reply_text(simple_help)
+                logger.info("✅ Простая справка отправлена")
+            except Exception as simple_error:
+                logger.error(f"❌ Ошибка отправки простой справки: {simple_error}")
         
     except Exception as e:
         logger.error(f"❌ Ошибка в команде /help: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        
+        if update and update.message:
+            try:
+                await update.message.reply_text("❌ Произошла ошибка. Попробуйте /test")
+            except Exception as final_error:
+                logger.error(f"❌ Финальная ошибка: {final_error}")
 
 async def test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /test для диагностики"""
@@ -235,11 +260,31 @@ async def test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.warning("⚠️ Нет объекта message в update для /test")
             return
             
-        test_text = f"""
+        # Сначала отправим простое сообщение без разметки
+        try:
+            result1 = await update.message.reply_text("🧪 Тест 1: Простое сообщение")
+            logger.info(f"✅ Простое сообщение отправлено, ID: {result1.message_id if result1 else 'unknown'}")
+        except Exception as e1:
+            logger.error(f"❌ Ошибка простого сообщения: {e1}")
+            return
+            
+        # Затем с клавиатурой
+        try:
+            result2 = await update.message.reply_text(
+                "🧪 Тест 2: Сообщение с клавиатурой",
+                reply_markup=create_main_menu_keyboard()
+            )
+            logger.info(f"✅ Сообщение с клавиатурой отправлено, ID: {result2.message_id if result2 else 'unknown'}")
+        except Exception as e2:
+            logger.error(f"❌ Ошибка сообщения с клавиатурой: {e2}")
+            
+        # Затем с Markdown
+        try:
+            test_text = f"""
 🧪 **ТЕСТ БОТА**
 
 ✅ Webhook работает
-✅ Команды обрабатываются
+✅ Команды обрабатываются  
 ✅ Клавиатуры создаются
 ✅ Сообщения отправляются
 
@@ -247,26 +292,27 @@ async def test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 Время: {update.message.date}
 Пользователь: {user_id}
 """
-        
-        try:
-            await update.message.reply_text(
+            result3 = await update.message.reply_text(
                 test_text,
-                reply_markup=create_main_menu_keyboard(),
                 parse_mode='Markdown'
             )
-            logger.info("✅ Тестовое сообщение отправлено")
+            logger.info(f"✅ Markdown сообщение отправлено, ID: {result3.message_id if result3 else 'unknown'}")
             
-        except Exception as send_error:
-            logger.error(f"❌ Ошибка отправки тестового сообщения: {send_error}")
-            await update.message.reply_text("🧪 Тест пройден, но есть проблемы с разметкой")
+        except Exception as e3:
+            logger.error(f"❌ Ошибка Markdown сообщения: {e3}")
+            # Fallback без разметки
+            await update.message.reply_text("🧪 Тест завершен с ошибками разметки")
         
     except Exception as e:
         logger.error(f"❌ Ошибка в команде /test: {e}")
-        if update.message:
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        
+        if update and update.message:
             try:
-                await update.message.reply_text("❌ Ошибка в тесте")
+                await update.message.reply_text("❌ Критическая ошибка в тесте")
             except:
-                pass
+                logger.error("❌ Не удалось отправить сообщение об ошибке")
 
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Универсальный обработчик callback-запросов"""
