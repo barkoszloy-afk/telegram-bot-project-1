@@ -57,6 +57,29 @@ def index():
 # Глобальные переменные
 application = None
 
+def setup_webhook_route():
+    """Настройка webhook route после импорта конфигурации"""
+    @app.route(f'/webhook/{BOT_TOKEN}', methods=['POST'])
+    def webhook():
+        """Обработчик webhook запросов от Telegram"""
+        try:
+            # Получаем JSON данные от Telegram
+            json_data = request.get_json()
+            if not json_data:
+                return "No data", 400
+                
+            # Создаем Update объект из JSON данных
+            if application and application.bot:
+                update = Update.de_json(json_data, application.bot)
+                if update:
+                    # Обрабатываем update в фоновом режиме
+                    asyncio.create_task(application.process_update(update))
+            
+            return "OK", 200
+        except Exception as e:
+            logger.error(f"❌ Ошибка обработки webhook: {e}")
+            return "Error", 500
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /start"""
     if not update.message:
@@ -185,6 +208,7 @@ async def setup_webhook():
         logger.info(f"🌐 Webhook установлен: {webhook_url}")
         # Для webhook режима просто инициализируем приложение
         await application.start()
+        logger.info("✅ Приложение запущено в webhook режиме")
     else:
         logger.info("🏠 Локальный режим - polling")
         # Запуск polling для локального режима  
@@ -212,6 +236,9 @@ def main():
         # Валидация конфигурации
         validate_config()
         logger.info("✅ Конфигурация успешно загружена")
+        
+        # Настройка webhook route после загрузки конфигурации
+        setup_webhook_route()
         
         # Проверка Railway окружения
         is_railway = os.environ.get('RAILWAY_ENVIRONMENT') is not None
