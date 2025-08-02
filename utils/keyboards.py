@@ -102,11 +102,33 @@ def create_post_keyboard(post_id: str, has_morning_variants: bool = False):
 def get_admin_menu_keyboard():
     """Создает клавиатуру для главного меню админ-панели"""
     keyboard = [
-        [InlineKeyboardButton("📊 Статистика", callback_data='admin_stats')],
-        [InlineKeyboardButton("🌅 Утренний пост", callback_data='admin_morning')],
-        [InlineKeyboardButton("🔮 Гороскоп", callback_data='admin_horoscope')],
-        [InlineKeyboardButton("🌙 Вечерний пост", callback_data='admin_evening')],
-        [InlineKeyboardButton("🔄 Очистить старые данные", callback_data='admin_cleanup')]
+        # Основные функции публикации
+        [
+            InlineKeyboardButton("🌅 Утренний пост", callback_data='admin_morning'),
+            InlineKeyboardButton("� Вечерний пост", callback_data='admin_evening')
+        ],
+        [
+            InlineKeyboardButton("🔮 Гороскоп", callback_data='admin_horoscope'),
+            InlineKeyboardButton("💫 Мотивация", callback_data='admin_motivation')
+        ],
+        # Управление ботом
+        [
+            InlineKeyboardButton("📊 Статистика", callback_data='admin_stats'),
+            InlineKeyboardButton("👥 Пользователи", callback_data='admin_users')
+        ],
+        [
+            InlineKeyboardButton("📝 Логи", callback_data='admin_logs'),
+            InlineKeyboardButton("🔧 Настройки", callback_data='admin_settings')
+        ],
+        # Служебные функции
+        [
+            InlineKeyboardButton("🔄 Очистить данные", callback_data='admin_cleanup'),
+            InlineKeyboardButton("🚀 Перезапуск", callback_data='admin_restart')
+        ],
+        [
+            InlineKeyboardButton("📤 Рассылка", callback_data='admin_broadcast'),
+            InlineKeyboardButton("⚡ Тест функций", callback_data='admin_test')
+        ]
     ]
     return keyboard
 

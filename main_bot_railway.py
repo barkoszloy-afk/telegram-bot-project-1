@@ -527,13 +527,15 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not query:
         return
         
+    # Подтверждаем нажатие кнопки коротким уведомлением
+    await query.answer("Главное меню")
+        
     # Получаем имя пользователя
     user_name = "друг"
     if query.from_user and query.from_user.first_name:
         user_name = query.from_user.first_name
         
-    text = f"""
-� Привет, {user_name}!
+    text = f"""🌟 Привет, {user_name}!
 
 Добро пожаловать в мир саморазвития и вдохновения! ✨
 

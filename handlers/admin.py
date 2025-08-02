@@ -13,6 +13,8 @@ from utils.keyboards import (
 )
 from utils.database import reactions_db
 
+logger = logging.getLogger(__name__)
+
 async def handle_admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /admin - показывает админ-панель"""
     if not update.effective_user or not update.message:
@@ -51,6 +53,18 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
         await preview_evening_post(query, context)
     elif action == 'admin_cleanup':
         await cleanup_old_data(query, context)
+    elif action == 'admin_broadcast':
+        await show_broadcast_menu(query, context)
+    elif action == 'admin_users':
+        await show_users_management(query, context)
+    elif action == 'admin_logs':
+        await show_logs(query, context)
+    elif action == 'admin_settings':
+        await show_settings(query, context)
+    elif action == 'admin_restart':
+        await restart_bot(query, context)
+    elif action == 'admin_test':
+        await test_functions(query, context)
     elif action.startswith('publish_'):
         await publish_post_to_channel(query, context)
     elif action.startswith('cancel_'):
@@ -267,3 +281,167 @@ async def handle_morning_variant_callback(update: Update, context: ContextTypes.
         message = "✨ Спасибо за выбор!"
     
     await query.answer(message, show_alert=True)
+
+async def show_broadcast_menu(query, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает меню рассылки"""
+    try:
+        keyboard = [
+            [InlineKeyboardButton("📢 Рассылка всем", callback_data="broadcast_all")],
+            [InlineKeyboardButton("👥 Рассылка активным", callback_data="broadcast_active")],
+            [InlineKeyboardButton("📝 Создать объявление", callback_data="broadcast_announcement")],
+            [InlineKeyboardButton("🔙 Назад", callback_data="admin_menu")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            "📢 Меню рассылки\n\nВыберите тип рассылки:",
+            reply_markup=reply_markup
+        )
+    except Exception as e:
+        logger.error(f"Ошибка в show_broadcast_menu: {e}")
+        await query.answer("Ошибка при показе меню рассылки")
+
+async def show_users_management(query, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает управление пользователями"""
+    try:
+        from utils.database import reactions_db
+        data = reactions_db.get_data()
+        users = data.get('users', {})
+        total_users = len(users)
+        
+        # Подсчитываем активных пользователей (с реакциями за последние 7 дней)
+        import time
+        week_ago = time.time() - (7 * 24 * 60 * 60)
+        active_users = 0
+        for user_data in users.values():
+            reactions = user_data.get('reactions', {})
+            if any(reaction_time > week_ago for reaction_time in reactions.values()):
+                active_users += 1
+        
+        keyboard = [
+            [InlineKeyboardButton("📊 Статистика пользователей", callback_data="users_stats")],
+            [InlineKeyboardButton("🚫 Заблокированные", callback_data="users_blocked")],
+            [InlineKeyboardButton("📋 Экспорт списка", callback_data="users_export")],
+            [InlineKeyboardButton("🔙 Назад", callback_data="admin_menu")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        text = f"""👥 Управление пользователями
+        
+📊 Общая статистика:
+• Всего пользователей: {total_users}
+• Активных (за неделю): {active_users}
+• Неактивных: {total_users - active_users}
+
+Выберите действие:"""
+        
+        await query.edit_message_text(text, reply_markup=reply_markup)
+    except Exception as e:
+        logger.error(f"Ошибка в show_users_management: {e}")
+        await query.answer("Ошибка при показе управления пользователями")
+
+async def show_logs(query, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает логи бота"""
+    try:
+        import os
+        
+        keyboard = [
+            [InlineKeyboardButton("📄 Последние 50 строк", callback_data="logs_recent")],
+            [InlineKeyboardButton("⚠️ Только ошибки", callback_data="logs_errors")],
+            [InlineKeyboardButton("🗑️ Очистить логи", callback_data="logs_clear")],
+            [InlineKeyboardButton("🔙 Назад", callback_data="admin_menu")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        # Проверяем размер лог-файла
+        log_size = 0
+        if os.path.exists('bot.log'):
+            log_size = os.path.getsize('bot.log')
+        
+        text = f"""📋 Логи системы
+        
+📊 Информация:
+• Размер файла логов: {log_size} байт
+• Путь: bot.log
+
+Выберите действие:"""
+        
+        await query.edit_message_text(text, reply_markup=reply_markup)
+    except Exception as e:
+        logger.error(f"Ошибка в show_logs: {e}")
+        await query.answer("Ошибка при показе логов")
+
+async def show_settings(query, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает настройки бота"""
+    try:
+        keyboard = [
+            [InlineKeyboardButton("⏰ Расписание постов", callback_data="settings_schedule")],
+            [InlineKeyboardButton("📱 Настройки канала", callback_data="settings_channel")],
+            [InlineKeyboardButton("🔔 Уведомления", callback_data="settings_notifications")],
+            [InlineKeyboardButton("💾 Резервное копирование", callback_data="settings_backup")],
+            [InlineKeyboardButton("🔙 Назад", callback_data="admin_menu")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        text = """⚙️ Настройки бота
+        
+Выберите раздел для настройки:
+
+⏰ Расписание - управление временем постов
+📱 Канал - настройки публикации
+🔔 Уведомления - настройки оповещений
+💾 Резервное копирование - управление данными"""
+        
+        await query.edit_message_text(text, reply_markup=reply_markup)
+    except Exception as e:
+        logger.error(f"Ошибка в show_settings: {e}")
+        await query.answer("Ошибка при показе настроек")
+
+async def restart_bot(query, context: ContextTypes.DEFAULT_TYPE):
+    """Перезапускает бота"""
+    try:
+        keyboard = [
+            [InlineKeyboardButton("✅ Подтвердить", callback_data="restart_confirm")],
+            [InlineKeyboardButton("❌ Отмена", callback_data="admin_menu")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        text = """🔄 Перезапуск бота
+        
+⚠️ ВНИМАНИЕ: Перезапуск бота приведет к:
+• Остановке всех текущих операций
+• Временной недоступности бота
+• Перезагрузке всех настроек
+
+Вы уверены, что хотите перезапустить бота?"""
+        
+        await query.edit_message_text(text, reply_markup=reply_markup)
+    except Exception as e:
+        logger.error(f"Ошибка в restart_bot: {e}")
+        await query.answer("Ошибка при перезапуске")
+
+async def test_functions(query, context: ContextTypes.DEFAULT_TYPE):
+    """Тестирует функции бота"""
+    try:
+        keyboard = [
+            [InlineKeyboardButton("🔗 Тест вебхука", callback_data="test_webhook")],
+            [InlineKeyboardButton("📱 Тест клавиатур", callback_data="test_keyboards")],
+            [InlineKeyboardButton("📢 Тест публикации", callback_data="test_publish")],
+            [InlineKeyboardButton("💾 Тест базы данных", callback_data="test_database")],
+            [InlineKeyboardButton("🔙 Назад", callback_data="admin_menu")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        text = """🧪 Тестирование функций
+        
+Выберите компонент для тестирования:
+
+🔗 Вебхук - проверка соединения
+📱 Клавиатуры - тест интерфейса
+📢 Публикация - тест постинга
+💾 База данных - проверка данных"""
+        
+        await query.edit_message_text(text, reply_markup=reply_markup)
+    except Exception as e:
+        logger.error(f"Ошибка в test_functions: {e}")
+        await query.answer("Ошибка при тестировании")
