@@ -200,19 +200,34 @@ async def setup_webhook():
     # Инициализация приложения
     await application.initialize()
     
-    # Получение Railway URL или использование локального тестирования
+    # Получение Railway URL для webhook
+    # Railway не устанавливает RAILWAY_PUBLIC_DOMAIN, но мы можем использовать собственное определение
+    # Или просто предполагать что это Railway если мы дошли до этой функции
     railway_url = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
+    
+    # В Railway всегда используем webhook, даже если нет RAILWAY_PUBLIC_DOMAIN
+    is_railway_env = (
+        os.environ.get('RAILWAY_PROJECT_ID') is not None or
+        os.environ.get('PORT') is not None
+    )
+    
     if railway_url:
         webhook_url = f"https://{railway_url}/webhook/{BOT_TOKEN}"
         await application.bot.set_webhook(webhook_url)
         logger.info(f"🌐 Webhook установлен: {webhook_url}")
-        # Для webhook режима просто инициализируем приложение
-        await application.start()
-        logger.info("✅ Приложение запущено в webhook режиме")
+    elif is_railway_env:
+        # Railway окружение без RAILWAY_PUBLIC_DOMAIN - устанавливаем пустой webhook для очистки
+        await application.bot.delete_webhook()
+        logger.info("🌐 Webhook очищен для Railway окружения")
     else:
         logger.info("🏠 Локальный режим - polling")
-        # Запуск polling для локального режима  
+        # Запуск polling ТОЛЬКО для настоящего локального режима
         application.run_polling(drop_pending_updates=True)
+        return
+        
+    # Для webhook режима просто инициализируем приложение
+    await application.start()
+    logger.info("✅ Приложение запущено в webhook режиме")
 
 async def run_webhook_mode():
     """Запуск в режиме webhook для Railway"""
@@ -240,8 +255,13 @@ def main():
         # Настройка webhook route после загрузки конфигурации
         setup_webhook_route()
         
-        # Проверка Railway окружения
-        is_railway = os.environ.get('RAILWAY_ENVIRONMENT') is not None
+        # Проверка Railway окружения - используем переменные, которые автоматически создаёт Railway
+        is_railway = (
+            os.environ.get('RAILWAY_PROJECT_ID') is not None or
+            os.environ.get('RAILWAY_SERVICE_ID') is not None or 
+            os.environ.get('RAILWAY_DEPLOYMENT_ID') is not None or
+            os.environ.get('PORT') is not None  # Railway всегда устанавливает PORT
+        )
         
         if is_railway:
             logger.info("🚀 Запуск в Railway режиме")
