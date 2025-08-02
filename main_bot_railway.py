@@ -243,14 +243,14 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /help"""
     try:
         user_id = update.effective_user.id if update.effective_user else "unknown"
-        logger.info(f"📋 Команда /help от пользователя {user_id}")
+        chat_id = update.effective_chat.id if update.effective_chat else user_id
+        logger.info(f"📋 Команда /help от пользователя {user_id}, чат {chat_id}")
         
         if not update.message:
             logger.warning("⚠️ Нет объекта message в update для /help")
             return
             
-        help_text = """
-📋 Доступные команды:
+        help_text = """📋 Доступные команды:
 
 /start - Приветствие и главное меню с категориями
 /help - Показать эту справку
@@ -264,24 +264,48 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 • Ставьте реакции ❤️👍🥹
 • Выбирайте свой знак зодиака для гороскопов
 
-💫 Откройте для себя мир саморазвития!
-"""
+💫 Откройте для себя мир саморазвития!"""
         
         try:
+            # Главная попытка отправки
             result = await update.message.reply_text(help_text)
-            logger.info(f"✅ Справка отправлена, message_id: {result.message_id if result else 'unknown'}")
+            if result and hasattr(result, 'message_id'):
+                logger.info(f"✅ Справка отправлена, message_id: {result.message_id}")
+            else:
+                logger.warning(f"⚠️ Справка отправлена, но result: {result}")
+                
         except Exception as send_error:
-            logger.error(f"❌ Ошибка отправки справки: {send_error}")
-            # Попробуем отправить простую справку
+            logger.error(f"❌ Ошибка отправки справки через reply_text: {send_error}")
+            
+            # Fallback через прямой API вызов
             try:
-                simple_help = "📋 Бот работает! Используйте /start для главного меню."
-                await update.message.reply_text(simple_help)
-                logger.info("✅ Простая справка отправлена")
-            except Exception as simple_error:
-                logger.error(f"❌ Ошибка отправки простой справки: {simple_error}")
+                import requests
+                url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+                data = {
+                    "chat_id": chat_id,
+                    "text": help_text
+                }
+                
+                response = requests.post(url, json=data, timeout=10)
+                if response.status_code == 200:
+                    result_data = response.json()
+                    message_id = result_data.get('result', {}).get('message_id', 'unknown')
+                    logger.info(f"✅ Справка отправлена через API fallback, message_id: {message_id}")
+                else:
+                    logger.error(f"❌ Ошибка API fallback: {response.status_code} - {response.text}")
+                    
+            except Exception as api_error:
+                logger.error(f"❌ Ошибка API fallback: {api_error}")
+                
+                # Последняя попытка - простое сообщение
+                try:
+                    await update.message.reply_text("📋 Бот работает! Используйте /start для главного меню.")
+                    logger.info("✅ Простая справка отправлена")
+                except Exception as simple_error:
+                    logger.error(f"❌ Финальная ошибка отправки: {simple_error}")
         
     except Exception as e:
-        logger.error(f"❌ Ошибка в команде /help: {e}")
+        logger.error(f"❌ Критическая ошибка в команде /help: {e}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
         
