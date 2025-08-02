@@ -163,20 +163,27 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             logger.info("✅ Главное меню отправлено")
             
-            # Удаляем любые существующие Reply клавиатуры
-            await update.message.reply_text(
-                "🔧 Интерфейс обновлен - используйте кнопки под сообщениями",
-                reply_markup=remove_reply_keyboard()
-            )
-            logger.info("✅ Reply клавиатуры удалены")
+            # Удаляем любые существующие Reply клавиатуры (отдельным сообщением)
+            try:
+                await update.message.reply_text(
+                    "🔧 Интерфейс обновлен - используйте кнопки под сообщениями",
+                    reply_markup=remove_reply_keyboard()
+                )
+                logger.info("✅ Reply клавиатуры удалены")
+            except Exception as remove_error:
+                logger.warning(f"⚠️ Не удалось удалить Reply клавиатуры: {remove_error}")
             
         except Exception as send_error:
             logger.error(f"❌ Ошибка отправки сообщения: {send_error}")
             # Попробуем отправить простое сообщение без разметки
-            await update.message.reply_text(
-                f"🌟 Привет, {user_name}! Добро пожаловать!",
-                reply_markup=create_main_menu_keyboard()
-            )
+            try:
+                await update.message.reply_text(
+                    f"🌟 Привет, {user_name}! Добро пожаловать!",
+                    reply_markup=create_main_menu_keyboard()
+                )
+                logger.info("✅ Fallback сообщение отправлено")
+            except Exception as fallback_error:
+                logger.error(f"❌ Ошибка fallback сообщения: {fallback_error}")
             
     except Exception as e:
         logger.error(f"❌ Ошибка в команде /start: {e}")
@@ -217,6 +224,49 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     except Exception as e:
         logger.error(f"❌ Ошибка в команде /help: {e}")
+
+async def test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /test для диагностики"""
+    try:
+        user_id = update.effective_user.id if update.effective_user else "unknown"
+        logger.info(f"🧪 Команда /test от пользователя {user_id}")
+        
+        if not update.message:
+            logger.warning("⚠️ Нет объекта message в update для /test")
+            return
+            
+        test_text = f"""
+🧪 **ТЕСТ БОТА**
+
+✅ Webhook работает
+✅ Команды обрабатываются
+✅ Клавиатуры создаются
+✅ Сообщения отправляются
+
+🤖 Бот функционирует нормально!
+Время: {update.message.date}
+Пользователь: {user_id}
+"""
+        
+        try:
+            await update.message.reply_text(
+                test_text,
+                reply_markup=create_main_menu_keyboard(),
+                parse_mode='Markdown'
+            )
+            logger.info("✅ Тестовое сообщение отправлено")
+            
+        except Exception as send_error:
+            logger.error(f"❌ Ошибка отправки тестового сообщения: {send_error}")
+            await update.message.reply_text("🧪 Тест пройден, но есть проблемы с разметкой")
+        
+    except Exception as e:
+        logger.error(f"❌ Ошибка в команде /test: {e}")
+        if update.message:
+            try:
+                await update.message.reply_text("❌ Ошибка в тесте")
+            except:
+                pass
 
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Универсальный обработчик callback-запросов"""
@@ -639,6 +689,7 @@ async def setup_webhook():
     # Регистрация обработчиков команд
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("test", test_command))
     application.add_handler(CommandHandler("admin", handle_admin_command))
     
     # Регистрация обработчика callback-запросов
@@ -776,6 +827,7 @@ def run_local_polling():
     # Регистрация обработчиков
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("test", test_command))
     application.add_handler(CommandHandler("admin", handle_admin_command))
     application.add_handler(CallbackQueryHandler(handle_callback_query))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
