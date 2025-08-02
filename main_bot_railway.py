@@ -42,10 +42,26 @@ app = Flask(__name__)
 def health_check():
     """Healthcheck endpoint для Railway"""
     import time
+    global application, start_time
+    
+    # Проверяем состояние бота
+    bot_status = "unknown"
+    if application:
+        try:
+            bot_status = "running" if application.running else "stopped"
+        except:
+            bot_status = "error"
+    
+    # Считаем uptime
+    uptime = 0
+    if start_time:
+        uptime = time.time() - start_time
+    
     return jsonify({
         "status": "healthy",
-        "bot": "running",
-        "timestamp": str(time.time())
+        "bot": bot_status,
+        "timestamp": str(time.time()),
+        "uptime_seconds": round(uptime, 2)
     }), 200
 
 @app.route('/')
@@ -54,6 +70,23 @@ def index():
     return jsonify({
         "message": "Telegram Bot is running on Railway",
         "status": "active"
+    }), 200
+
+@app.route('/metrics')
+def get_metrics():
+    """Метрики использования бота"""
+    global metrics, start_time
+    import time
+    
+    uptime = 0
+    if start_time:
+        uptime = time.time() - start_time
+    
+    return jsonify({
+        "uptime_seconds": round(uptime, 2),
+        "uptime_hours": round(uptime / 3600, 2),
+        "metrics": metrics,
+        "timestamp": str(time.time())
     }), 200
 
 @app.route('/railway-vars')
@@ -126,18 +159,29 @@ def test_send():
 
 # Глобальные переменные
 application = None
+start_time = None
+metrics = {
+    "messages_processed": 0,
+    "commands_executed": 0,
+    "callbacks_handled": 0,
+    "errors_count": 0
+}
 
 def setup_webhook_route():
     """Настройка webhook route после импорта конфигурации"""
     @app.route(f'/webhook/{BOT_TOKEN}', methods=['POST'])
     def webhook():
         """Обработчик webhook запросов от Telegram"""
+        global metrics
         try:
             # Получаем JSON данные от Telegram
             json_data = request.get_json()
             if not json_data:
                 logger.warning("⚠️ Webhook получил пустые данные")
                 return "No data", 400
+            
+            # Увеличиваем счетчик сообщений
+            metrics["messages_processed"] += 1
             
             # Логируем тип полученного update
             update_type = "unknown"
@@ -146,10 +190,13 @@ def setup_webhook_route():
                 if 'text' in json_data['message']:
                     text = json_data['message']['text']
                     logger.info(f"📥 Webhook получил сообщение: {text}")
+                    if text.startswith('/'):
+                        metrics["commands_executed"] += 1
             elif 'callback_query' in json_data:
                 update_type = "callback_query"
                 callback_data = json_data['callback_query'].get('data', '')
                 logger.info(f"📥 Webhook получил callback: {callback_data}")
+                metrics["callbacks_handled"] += 1
                 
             # Создаем Update объект из JSON данных  
             if application and application.bot:
@@ -175,6 +222,7 @@ def setup_webhook_route():
                                 logger.error("❌ Application отсутствует при обработке")
                             
                         except Exception as e:
+                            metrics["errors_count"] += 1
                             logger.error(f"❌ Ошибка async обработки: {e}")
                             import traceback
                             logger.error(f"Traceback: {traceback.format_exc()}")
@@ -921,6 +969,12 @@ async def run_webhook_mode():
 
 def main():
     """Главная функция"""
+    global start_time
+    import time
+    
+    # Устанавливаем время запуска
+    start_time = time.time()
+    
     try:
         # Валидация конфигурации
         validate_config()
