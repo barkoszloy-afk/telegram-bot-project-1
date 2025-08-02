@@ -69,12 +69,31 @@ def setup_webhook_route():
             if not json_data:
                 return "No data", 400
                 
-            # Создаем Update объект из JSON данных
+            # Создаем Update объект из JSON данных  
             if application and application.bot:
                 update = Update.de_json(json_data, application.bot)
                 if update:
-                    # Обрабатываем update в фоновом режиме
-                    asyncio.create_task(application.process_update(update))
+                    # Простая синхронная обработка
+                    import threading
+                    import asyncio
+                    
+                    def run_async_update():
+                        try:
+                            # Создаем новый event loop для этого потока
+                            new_loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(new_loop)
+                            
+                            # Обрабатываем update
+                            if application:
+                                new_loop.run_until_complete(application.process_update(update))
+                            
+                            new_loop.close()
+                        except Exception as e:
+                            logger.error(f"❌ Ошибка async обработки: {e}")
+                    
+                    # Запускаем в отдельном потоке
+                    thread = threading.Thread(target=run_async_update, daemon=True)
+                    thread.start()
             
             return "OK", 200
         except Exception as e:
@@ -202,24 +221,48 @@ async def setup_webhook():
     await application.initialize()
     
     # Получение Railway URL для webhook
-    # Railway не устанавливает RAILWAY_PUBLIC_DOMAIN, но мы можем использовать собственное определение
-    # Или просто предполагать что это Railway если мы дошли до этой функции
-    railway_url = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
+    # Проверяем несколько вариантов получения webhook URL
+    webhook_url = None
     
-    # В Railway всегда используем webhook, даже если нет RAILWAY_PUBLIC_DOMAIN
+    # Вариант 1: Переменная WEBHOOK_URL (устанавливается вручную)
+    manual_webhook = os.environ.get('WEBHOOK_URL')
+    if manual_webhook:
+        webhook_url = f"{manual_webhook}/webhook/{BOT_TOKEN}"
+        
+    # Вариант 2: RAILWAY_PUBLIC_DOMAIN (автоматически от Railway)
+    elif os.environ.get('RAILWAY_PUBLIC_DOMAIN'):
+        railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
+        webhook_url = f"https://{railway_domain}/webhook/{BOT_TOKEN}"
+        
+    # Вариант 3: RAILWAY_STATIC_URL (ещё один вариант от Railway)
+    elif os.environ.get('RAILWAY_STATIC_URL'):
+        railway_static = os.environ.get('RAILWAY_STATIC_URL')
+        webhook_url = f"{railway_static}/webhook/{BOT_TOKEN}"
+    
+    # Вариант 4: Автодетект домена через переменные Railway
+    elif os.environ.get('RAILWAY_PROJECT_NAME') and os.environ.get('RAILWAY_SERVICE_NAME'):
+        # Формируем URL по шаблону Railway: service-name-project-name.up.railway.app
+        project = os.environ.get('RAILWAY_PROJECT_NAME', '').lower()
+        service = os.environ.get('RAILWAY_SERVICE_NAME', '').lower()
+        if project and service:
+            auto_domain = f"{service}-{project}.up.railway.app"
+            webhook_url = f"https://{auto_domain}/webhook/{BOT_TOKEN}"
+            logger.info(f"🔍 Попытка автодетекта домена: {auto_domain}")
+    
+    # В Railway всегда используем webhook, даже если нет URL
     is_railway_env = (
         os.environ.get('RAILWAY_PROJECT_ID') is not None or
         os.environ.get('PORT') is not None
     )
     
-    if railway_url:
-        webhook_url = f"https://{railway_url}/webhook/{BOT_TOKEN}"
+    if webhook_url:
         await application.bot.set_webhook(webhook_url)
         logger.info(f"🌐 Webhook установлен: {webhook_url}")
     elif is_railway_env:
-        # Railway окружение без RAILWAY_PUBLIC_DOMAIN - устанавливаем пустой webhook для очистки
+        # Railway окружение без webhook URL - очищаем старый webhook
         await application.bot.delete_webhook()
-        logger.info("🌐 Webhook очищен для Railway окружения")
+        logger.info("⚠️ Webhook очищен - добавьте WEBHOOK_URL переменную для получения сообщений!")
+        logger.info("📋 Инструкция: Railway → Settings → Generate Domain → Variables → WEBHOOK_URL=ваш_домен")
     else:
         logger.info("🏠 Локальный режим - polling")
         # Запуск polling ТОЛЬКО для настоящего локального режима
