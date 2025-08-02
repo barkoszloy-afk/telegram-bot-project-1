@@ -56,6 +56,47 @@ def index():
         "status": "active"
     }), 200
 
+@app.route('/test-send')
+def test_send():
+    """Тест отправки сообщения с Railway"""
+    import time
+    try:
+        import requests
+    except ImportError:
+        return jsonify({
+            "status": "error",
+            "message": "requests не установлен на Railway"
+        }), 500
+    
+    try:
+        # Простой тест отправки сообщения
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+        data = {
+            "chat_id": 345470935,
+            "text": f"🧪 Тест с Railway сервера\n\nВремя: {time.time()}\nСтатус: Railway может отправлять сообщения!"
+        }
+        
+        response = requests.post(url, json=data, timeout=10)
+        
+        if response.status_code == 200:
+            return jsonify({
+                "status": "success",
+                "message": "Сообщение отправлено с Railway",
+                "telegram_response": response.json()
+            }), 200
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "Ошибка отправки с Railway",
+                "error": response.text
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            "status": "error", 
+            "message": f"Исключение при отправке: {str(e)}"
+        }), 500
+
 # Глобальные переменные
 application = None
 
