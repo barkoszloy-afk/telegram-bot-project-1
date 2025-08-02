@@ -501,6 +501,11 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         elif data.startswith("admin_"):
             await handle_admin_callback(update, context)
         
+        # Возврат в админ меню
+        elif data == "admin_menu":
+            from handlers.admin import show_admin_menu
+            await show_admin_menu(update.callback_query, context)
+        
         # Зодиакальные знаки
         elif data.startswith("zodiac_"):
             await handle_zodiac_selection(update, context)

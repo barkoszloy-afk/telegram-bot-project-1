@@ -445,3 +445,12 @@ async def test_functions(query, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Ошибка в test_functions: {e}")
         await query.answer("Ошибка при тестировании")
+
+async def show_admin_menu(query, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает главное админ-меню через callback"""
+    try:
+        reply_markup = create_admin_menu_keyboard()
+        await query.edit_message_text("🔧 Админ-панель:", reply_markup=reply_markup)
+    except Exception as e:
+        logger.error(f"Ошибка в show_admin_menu: {e}")
+        await query.answer("Ошибка при показе админ-меню")
