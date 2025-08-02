@@ -398,11 +398,17 @@ async def test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"❌ Ошибка простого сообщения: {e1}")
             return
             
-        # Затем с клавиатурой
+        # Затем с простой тестовой клавиатурой
         try:
+            from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+            test_keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("✅ Тест кнопки", callback_data='test_button')],
+                [InlineKeyboardButton("🔄 Еще тест", callback_data='test_button2')]
+            ])
+            
             result2 = await update.message.reply_text(
-                "🧪 Тест 2: Сообщение с клавиатурой",
-                reply_markup=create_main_menu_keyboard()
+                "🧪 Тест 2: Сообщение с тестовой клавиатурой",
+                reply_markup=test_keyboard
             )
             logger.info(f"✅ Сообщение с клавиатурой отправлено, ID: {result2.message_id if result2 else 'unknown'}")
         except Exception as e2:
@@ -411,7 +417,7 @@ async def test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Затем с Markdown
         try:
             test_text = f"""
-🧪 **ТЕСТ БОТА**
+🧪 **ТЕСТ БОТА ЗАВЕРШЕН**
 
 ✅ Webhook работает
 ✅ Команды обрабатываются  
@@ -421,6 +427,8 @@ async def test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🤖 Бот функционирует нормально!
 Время: {update.message.date}
 Пользователь: {user_id}
+
+💡 Используйте /start для главного меню
 """
             result3 = await update.message.reply_text(
                 test_text,
@@ -496,6 +504,10 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         # Зодиакальные знаки
         elif data.startswith("zodiac_"):
             await handle_zodiac_selection(update, context)
+        
+        # Тестовые кнопки
+        elif data.startswith("test_button"):
+            await query.answer("✅ Тестовая кнопка работает!", show_alert=True)
         
         # Неизвестная команда
         else:
