@@ -40,10 +40,11 @@ app = Flask(__name__)
 @app.route('/health')
 def health_check():
     """Healthcheck endpoint для Railway"""
+    import time
     return jsonify({
         "status": "healthy",
         "bot": "running",
-        "timestamp": str(asyncio.get_event_loop().time())
+        "timestamp": str(time.time())
     }), 200
 
 @app.route('/')
