@@ -1,0 +1,42 @@
+{
+  "name": "telegram-bot-project",
+  "description": "Modern Telegram Bot with CI/CD",
+  "repository": "https://github.com/barkoszloy-afk/telegram-bot-project-1",
+  "logo": "https://telegram.org/img/t_logo.png",
+  "keywords": [
+    "telegram",
+    "bot",
+    "python",
+    "heroku"
+  ],
+  "stack": "heroku-22",
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "env": {
+    "BOT_TOKEN": {
+      "description": "Telegram Bot Token from @BotFather",
+      "required": true
+    },
+    "ADMIN_ID": {
+      "description": "Your Telegram User ID",
+      "required": true
+    },
+    "CHANNEL_ID": {
+      "description": "Telegram Channel ID (optional)",
+      "required": false
+    },
+    "PORT": {
+      "description": "Port for web server",
+      "value": "8000"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "eco"
+    }
+  }
+}
