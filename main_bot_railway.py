@@ -66,6 +66,33 @@ def index():
         "status": "active"
     }), 200
 
+@app.route('/logs')
+def get_logs():
+    """Показать последние записи из лога"""
+    try:
+        import os
+        log_file = 'bot.log'
+        if os.path.exists(log_file):
+            with open(log_file, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                # Берем последние 50 строк
+                last_lines = lines[-50:] if len(lines) > 50 else lines
+                return jsonify({
+                    "logs": last_lines,
+                    "total_lines": len(lines),
+                    "showing_last": len(last_lines)
+                }), 200
+        else:
+            return jsonify({
+                "error": "Log file not found",
+                "logs": []
+            }), 404
+    except Exception as e:
+        return jsonify({
+            "error": f"Error reading logs: {str(e)}",
+            "logs": []
+        }), 500
+
 # Глобальные переменные
 application = None
 start_time = None
