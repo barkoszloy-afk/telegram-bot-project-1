@@ -172,6 +172,79 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         # Не отправляем ошибку пользователю в webhook режиме, 
         # так как это может вызвать дополнительные проблемы с event loop
 
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Команда /help - краткая справка"""
+    try:
+        user_id = update.effective_user.id if update.effective_user else "unknown"
+        logger.info(f"📚 Команда /help от пользователя {user_id}")
+        
+        if not update.message:
+            logger.warning("⚠️ Нет объекта message в update для /help")
+            return
+
+        help_text = """🤖 Справка по боту
+
+📋 Доступные команды:
+/start - Главное меню с категориями
+/help - Показать эту справку  
+/instructions - Подробные инструкции
+
+💡 Быстрый старт:
+1. Нажмите /start
+2. Выберите категорию
+3. Наслаждайтесь контентом!
+
+👤 Поддержка: @admin"""
+
+        await update.message.reply_text(help_text)
+        logger.info("✅ Команда /help выполнена успешно")
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка в команде /help: {e}")
+        import traceback
+        logger.error(f"📋 Полный traceback: {traceback.format_exc()}")
+
+async def instructions_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Команда /instructions - подробные инструкции"""
+    try:
+        user_id = update.effective_user.id if update.effective_user else "unknown"
+        logger.info(f"📖 Команда /instructions от пользователя {user_id}")
+        
+        if not update.message:
+            logger.warning("⚠️ Нет объекта message в update для /instructions")
+            return
+
+        instructions_text = """📚 Подробные инструкции по использованию бота
+
+🚀 Начало работы:
+1. Отправьте команду /start
+2. Вы увидите главное меню с 5 категориями
+3. Нажмите на интересующую категорию
+
+🎯 Категории:
+💫 Мотивация - ежедневное вдохновение и цитаты
+🔮 Эзотерика - гороскопы, астрология и духовность  
+🎯 Развитие - личностный рост и обучение
+🌟 Здоровье - советы о здоровье и фитнесе
+💝 Отношения - гармония в общении и любви
+
+⚙️ Дополнительные возможности:
+- /help - быстрая справка
+- /instructions - эти подробные инструкции
+
+🔧 Техническая поддержка:
+При проблемах обращайтесь к @admin
+
+✨ Желаем продуктивного использования!"""
+
+        await update.message.reply_text(instructions_text)
+        logger.info("✅ Команда /instructions выполнена успешно")
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка в команде /instructions: {e}")
+        import traceback
+        logger.error(f"📋 Полный traceback: {traceback.format_exc()}")
+
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Универсальный обработчик callback-запросов"""
     query = update.callback_query
@@ -266,6 +339,31 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 
 # ================== SETUP И ЗАПУСК ==================
 
+async def setup_bot_commands(application: Application) -> None:
+    """Установка команд бота в меню Telegram"""
+    try:
+        logger.info("⚙️ Устанавливаем команды бота...")
+        
+        from telegram import BotCommand
+        commands = [
+            BotCommand("start", "Главное меню с категориями"),
+            BotCommand("help", "Справка по использованию бота"),
+            BotCommand("instructions", "Подробные инструкции")
+        ]
+        
+        await application.bot.set_my_commands(commands)
+        logger.info("✅ Команды бота установлены успешно!")
+        
+        # Логируем установленные команды
+        set_commands = await application.bot.get_my_commands()
+        for cmd in set_commands:
+            logger.info(f"📋 Команда: /{cmd.command} - {cmd.description}")
+            
+    except Exception as e:
+        logger.error(f"❌ Ошибка установки команд: {e}")
+        import traceback
+        logger.error(f"📋 Полный traceback: {traceback.format_exc()}")
+
 def run_flask():
     """Запуск Flask сервера в отдельном потоке"""
     port = int(os.environ.get('PORT', 8000))
@@ -292,6 +390,8 @@ async def setup_webhook():
     
     # Регистрация обработчиков команд
     application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("instructions", instructions_command))
     
     # Регистрация обработчика callback-запросов
     application.add_handler(CallbackQueryHandler(handle_callback_query))
@@ -301,6 +401,9 @@ async def setup_webhook():
     
     # Инициализация приложения
     await application.initialize()
+    
+    # Установка команд бота
+    await setup_bot_commands(application)
     
     # Получение Railway URL для webhook
     webhook_url = None
@@ -418,6 +521,8 @@ def run_local_polling():
     
     # Регистрация обработчиков
     application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("instructions", instructions_command))
     application.add_handler(CallbackQueryHandler(handle_callback_query))
     application.add_error_handler(error_handler)
     
