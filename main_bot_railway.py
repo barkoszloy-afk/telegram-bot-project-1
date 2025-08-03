@@ -2,12 +2,14 @@
 import logging
 import asyncio
 import os
+from typing import Dict, Any, Optional
 from telegram import Update
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, 
     MessageHandler, filters, ContextTypes
 )
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
+from flask.typing import ResponseReturnValue
 import threading
 
 # Импорты из наших модулей
@@ -33,7 +35,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 @app.route('/health')
-def health_check():
+def health_check() -> ResponseReturnValue:
     """Healthcheck endpoint для Railway"""
     import time
     global application, start_time
@@ -47,7 +49,7 @@ def health_check():
             bot_status = "error"
     
     # Считаем uptime
-    uptime = 0
+    uptime: float = 0.0
     if start_time:
         uptime = time.time() - start_time
     
@@ -59,7 +61,7 @@ def health_check():
     }), 200
 
 @app.route('/')
-def index():
+def index() -> ResponseReturnValue:
     """Главная страница"""
     return jsonify({
         "message": "Telegram Bot is running on Railway",
@@ -67,7 +69,7 @@ def index():
     }), 200
 
 @app.route('/logs')
-def get_logs():
+def get_logs() -> ResponseReturnValue:
     """Показать последние записи из лога"""
     try:
         import os
@@ -94,13 +96,13 @@ def get_logs():
         }), 500
 
 # Глобальные переменные
-application = None
-start_time = None
+application: Optional[Application] = None
+start_time: Optional[float] = None
 
-def setup_webhook_route():
+def setup_webhook_route() -> None:
     """Настройка webhook route после импорта конфигурации"""
     @app.route(f'/webhook/{BOT_TOKEN}', methods=['POST'])
-    def webhook():
+    def webhook() -> ResponseReturnValue:
         """Обработчик webhook запросов от Telegram"""
         try:
             # Получаем JSON данные от Telegram
@@ -117,7 +119,7 @@ def setup_webhook_route():
                     import threading
                     import asyncio
                     
-                    def run_async_update():
+                    def run_async_update() -> None:
                         try:
                             # Используем asyncio.run() вместо создания loop вручную
                             if application:
@@ -147,7 +149,7 @@ def setup_webhook_route():
 
 # ================== КОМАНДЫ БОТА ==================
 
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Команда /start - показывает главное меню"""
     try:
         user_id = update.effective_user.id if update.effective_user else "unknown"
@@ -170,7 +172,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Не отправляем ошибку пользователю в webhook режиме, 
         # так как это может вызвать дополнительные проблемы с event loop
 
-async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Универсальный обработчик callback-запросов"""
     query = update.callback_query
     if not query or not query.data:
@@ -199,7 +201,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         except:
             pass
 
-async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает главное меню"""
     try:
         logger.info("🔍 Начинаем show_main_menu")
@@ -258,13 +260,13 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"📋 Полный traceback: {traceback.format_exc()}")
         raise
 
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик ошибок"""
     logger.error(f"Exception while handling an update: {context.error}")
 
 # ================== SETUP И ЗАПУСК ==================
 
-def run_flask():
+def run_flask() -> None:
     """Запуск Flask сервера в отдельном потоке"""
     port = int(os.environ.get('PORT', 8000))
     app.run(host='0.0.0.0', port=port, debug=False)

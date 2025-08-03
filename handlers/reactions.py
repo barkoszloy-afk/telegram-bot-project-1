@@ -1,12 +1,14 @@
 # handlers/reactions.py - Обработчики реакций
 import logging
-from telegram import Update, InlineKeyboardMarkup
+from typing import Optional, List, Any
+
+from telegram import Update, InlineKeyboardMarkup, CallbackQuery
 from telegram.ext import ContextTypes
 from utils.database import reactions_db
 from utils.keyboards import get_zodiac_keyboard, get_morning_variants_keyboard, get_reaction_keyboard
 from config import REACTION_NAMES, REACTION_MESSAGES
 
-async def handle_reaction_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_reaction_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик реакций на посты"""
     query = update.callback_query
     if not query or not hasattr(query, 'data') or query.data is None:
@@ -67,11 +69,11 @@ async def handle_reaction_callback(update: Update, context: ContextTypes.DEFAULT
         except Exception as e2:
             logging.error(f"❌ Критическая ошибка: {e2}")
 
-async def update_post_keyboard(query, post_id: str, context: ContextTypes.DEFAULT_TYPE):
+async def update_post_keyboard(query: CallbackQuery, post_id: str, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обновляет клавиатуру поста с новыми счетчиками реакций"""
     try:
         # Определяем тип клавиатуры на основе существующей
-        current_keyboard = []
+        base_keyboard: InlineKeyboardMarkup
         
         if query.message and query.message.reply_markup and query.message.reply_markup.inline_keyboard:
             existing_keyboard = query.message.reply_markup.inline_keyboard
@@ -86,19 +88,20 @@ async def update_post_keyboard(query, post_id: str, context: ContextTypes.DEFAUL
             
             if has_morning_variants:
                 # Утренний пост - добавляем варианты утра
-                current_keyboard = get_morning_variants_keyboard()
+                base_keyboard = get_morning_variants_keyboard()
             else:
                 # Гороскоп или вечерний пост - зодиак
-                current_keyboard = get_zodiac_keyboard()
+                base_keyboard = get_zodiac_keyboard()
         else:
             # По умолчанию - зодиак
-            current_keyboard = get_zodiac_keyboard()
+            base_keyboard = get_zodiac_keyboard()
         
-        # Добавляем обновленные реакции
-        current_keyboard.extend(get_reaction_keyboard(post_id))
+        # Получаем клавиатуру с реакциями
+        reactions_keyboard = get_reaction_keyboard(post_id)
         
-        # Создаем новую клавиатуру
-        new_reply_markup = InlineKeyboardMarkup(current_keyboard)
+        # Объединяем клавиатуры
+        combined_keyboard = base_keyboard.inline_keyboard + reactions_keyboard.inline_keyboard
+        new_reply_markup = InlineKeyboardMarkup(combined_keyboard)
         
         # Обновляем сообщение
         chat_type = "КАНАЛ" if query.message and query.message.chat and query.message.chat.type == 'channel' else "ЛИЧКА"

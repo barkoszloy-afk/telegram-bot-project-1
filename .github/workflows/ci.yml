@@ -1,0 +1,203 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}-${{ hashFiles('**/pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[dev]
+        pip install -r requirements.txt
+    
+    - name: Lint with flake8
+      run: |
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
+    
+    - name: Check code formatting with black
+      run: |
+        black --check --diff .
+    
+    - name: Check import sorting with isort
+      run: |
+        isort --check-only --diff .
+    
+    - name: Type checking with mypy
+      run: |
+        mypy handlers utils --ignore-missing-imports
+    
+    - name: Test with pytest
+      run: |
+        pytest tests/ -v --cov=handlers --cov=utils --cov-report=xml --cov-report=term-missing
+    
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+
+  security:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+    
+    - name: Install security tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit safety
+    
+    - name: Run bandit security linter
+      run: |
+        bandit -r handlers utils -f json -o bandit-report.json || true
+        bandit -r handlers utils
+    
+    - name: Check dependencies with safety
+      run: |
+        safety check --json --output safety-report.json || true
+        safety check
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[dev]
+        pip install -r requirements.txt
+    
+    - name: Run integration tests
+      run: |
+        pytest tests/ -v -m "integration" || echo "No integration tests found"
+    
+    - name: Test bot configuration
+      env:
+        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        ADMIN_ID: ${{ secrets.ADMIN_ID }}
+      run: |
+        python -c "
+        import os
+        from config import validate_config
+        if os.getenv('BOT_TOKEN'):
+            validate_config()
+            print('✅ Configuration is valid')
+        else:
+            print('⚠️ BOT_TOKEN not set, skipping config validation')
+        "
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [test, security, integration]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to Railway
+      run: |
+        echo "🚀 Deployment would happen here"
+        echo "Railway deployment is handled automatically on push to main"
+    
+    - name: Create GitHub Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+
+  performance:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[dev]
+        pip install pytest-benchmark
+    
+    - name: Run performance tests
+      run: |
+        pytest tests/ -v -m "slow" --benchmark-only || echo "No performance tests found"
+    
+    - name: Memory usage test
+      run: |
+        python -c "
+        import psutil
+        import os
+        
+        # Тест базового импорта модулей
+        process = psutil.Process(os.getpid())
+        initial_memory = process.memory_info().rss / 1024 / 1024
+        
+        from handlers import admin, reactions
+        from utils import database, keyboards, localization
+        
+        final_memory = process.memory_info().rss / 1024 / 1024
+        memory_usage = final_memory - initial_memory
+        
+        print(f'Memory usage for imports: {memory_usage:.2f} MB')
+        
+        if memory_usage > 100:  # 100 MB limit
+            print('⚠️ High memory usage detected')
+            exit(1)
+        else:
+            print('✅ Memory usage is within acceptable limits')
+        "

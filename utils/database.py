@@ -8,7 +8,7 @@ from config import REACTIONS_FILE, CACHE_TTL, REACTION_NAMES
 class ReactionsDB:
     """Класс для работы с базой данных реакций с кэшированием"""
     
-    def __init__(self):
+    def __init__(self) -> None:
         self._cache: Optional[Dict[str, Any]] = None
         self._cache_timestamp: float = 0
         
@@ -60,11 +60,11 @@ class ReactionsDB:
         return data['posts'][post_id]
     
     @property
-    def data(self) -> dict:
-        """Возвращает текущие данные реакций"""
+    def data(self) -> Dict[str, Any]:
+        """Свойство для доступа к данным через более понятное имя"""
         return self.load_data()
     
-    def get_data(self) -> dict:
+    def get_data(self) -> Dict[str, Any]:
         """Альтернативный метод для получения данных"""
         return self.load_data()
     
@@ -116,7 +116,8 @@ class ReactionsDB:
     
     def get_user_reaction(self, user_id: str, post_reactions: Dict[str, Any]) -> Optional[str]:
         """Возвращает реакцию пользователя для поста, если есть"""
-        for reaction_name, users in post_reactions['reaction_users'].items():
+        reaction_users = post_reactions.get('reaction_users', {})
+        for reaction_name, users in reaction_users.items():
             if user_id in users:
                 return reaction_name
         return None

@@ -3,7 +3,9 @@ import asyncio
 import logging
 import random
 from datetime import datetime, timedelta
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from typing import Optional, Dict
+
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from telegram.ext import ContextTypes
 from config import ADMIN_ID, CHANNEL_ID, ZODIAC_MESSAGES, EVENING_MESSAGES
 from utils.keyboards import (
@@ -15,7 +17,7 @@ from utils.database import reactions_db
 
 logger = logging.getLogger(__name__)
 
-async def handle_admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Команда /admin - показывает админ-панель"""
     if not update.effective_user or not update.message:
         return
@@ -27,7 +29,7 @@ async def handle_admin_command(update: Update, context: ContextTypes.DEFAULT_TYP
     reply_markup = create_admin_menu_keyboard()
     await update.message.reply_text("🔧 Админ-панель:", reply_markup=reply_markup)
 
-async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик админ-команд"""
     query = update.callback_query
     if not query or not update.effective_user:
@@ -70,7 +72,7 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
     elif action.startswith('cancel_'):
         await cancel_post_preview(query, context)
 
-async def show_statistics(query, context: ContextTypes.DEFAULT_TYPE):
+async def show_statistics(query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает статистику реакций"""
     try:
         data = reactions_db.get_data()
@@ -87,7 +89,7 @@ async def show_statistics(query, context: ContextTypes.DEFAULT_TYPE):
 📈 Популярные реакции:"""
         
         # Считаем популярность реакций
-        reaction_counts = {}
+        reaction_counts: Dict[str, int] = {}
         for user_data in data.get('users', {}).values():
             for reaction in user_data.get('reactions', {}).values():
                 reaction_counts[reaction] = reaction_counts.get(reaction, 0) + 1
@@ -103,7 +105,7 @@ async def show_statistics(query, context: ContextTypes.DEFAULT_TYPE):
         logging.error(f"Ошибка получения статистики: {e}")
         await query.edit_message_text("❌ Ошибка получения статистики")
 
-async def preview_morning_post(query, context: ContextTypes.DEFAULT_TYPE):
+async def preview_morning_post(query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает предпросмотр утреннего поста"""
     try:
         post_text = """🌅 Доброе утро! ✨
@@ -136,7 +138,7 @@ async def preview_morning_post(query, context: ContextTypes.DEFAULT_TYPE):
         logging.error(f"Ошибка создания предпросмотра утреннего поста: {e}")
         await query.edit_message_text(f"❌ Ошибка создания предпросмотра: {e}")
 
-async def preview_horoscope_post(query, context: ContextTypes.DEFAULT_TYPE):
+async def preview_horoscope_post(query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает предпросмотр поста с гороскопом"""
     try:
         horoscope_text = random.choice(ZODIAC_MESSAGES)
@@ -163,7 +165,7 @@ async def preview_horoscope_post(query, context: ContextTypes.DEFAULT_TYPE):
         logging.error(f"Ошибка создания предпросмотра гороскопа: {e}")
         await query.edit_message_text(f"❌ Ошибка создания предпросмотра: {e}")
 
-async def preview_evening_post(query, context: ContextTypes.DEFAULT_TYPE):
+async def preview_evening_post(query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает предпросмотр вечернего поста"""
     try:
         evening_text = random.choice(EVENING_MESSAGES)
@@ -190,7 +192,7 @@ async def preview_evening_post(query, context: ContextTypes.DEFAULT_TYPE):
         logging.error(f"Ошибка создания предпросмотра вечернего поста: {e}")
         await query.edit_message_text(f"❌ Ошибка создания предпросмотра: {e}")
 
-async def publish_post_to_channel(query, context: ContextTypes.DEFAULT_TYPE):
+async def publish_post_to_channel(query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Публикует пост в канал после подтверждения"""
     try:
         action = query.data
@@ -241,11 +243,11 @@ async def publish_post_to_channel(query, context: ContextTypes.DEFAULT_TYPE):
         logging.error(f"Ошибка публикации поста: {e}")
         await query.edit_message_text(f"❌ Ошибка публикации: {e}")
 
-async def cancel_post_preview(query, context: ContextTypes.DEFAULT_TYPE):
+async def cancel_post_preview(query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Отменяет публикацию поста"""
     await query.edit_message_text("❌ Публикация отменена. Используйте /admin для новой команды.")
 
-async def cleanup_old_data(query, context: ContextTypes.DEFAULT_TYPE):
+async def cleanup_old_data(query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Очищает старые данные реакций"""
     try:
         # Очищаем данные старше 30 дней
@@ -259,7 +261,7 @@ async def cleanup_old_data(query, context: ContextTypes.DEFAULT_TYPE):
         evening_text = random.choice(EVENING_MESSAGES)
         post_text = f"🌙 Добрый вечер! ✨\n\n{evening_text}"
         
-async def handle_morning_variant_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_morning_variant_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик выбора утренних вариантов"""
     query = update.callback_query
     if not query:
