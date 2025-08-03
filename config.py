@@ -89,7 +89,12 @@ EVENING_MESSAGES = [
 def validate_config() -> bool:
     """Проверяет корректность конфигурации"""
     if not BOT_TOKEN:
-        raise ValueError("BOT_TOKEN не найден в переменных окружения")
+        # В CI/CD среде токен может отсутствовать - это нормально
+        if os.getenv('CI') or os.getenv('GITHUB_ACTIONS'):
+            print("⚠️ BOT_TOKEN отсутствует, но это ожидаемо в CI/CD среде")
+            return True
+        else:
+            raise ValueError("BOT_TOKEN не найден в переменных окружения")
     
     if not os.path.exists(IMAGES_PATH):
         print(f"⚠️ Предупреждение: папка с изображениями не найдена: {IMAGES_PATH}")
