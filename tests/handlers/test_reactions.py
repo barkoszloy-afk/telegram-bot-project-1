@@ -70,7 +70,7 @@ class TestReactionCallbacks:
         with patch('handlers.reactions.reactions_db') as mock_db:
             with patch('handlers.reactions.REACTION_NAMES', ['like', 'love', 'fire']):
                 with patch('handlers.reactions.REACTION_MESSAGES', 
-                          {'like': ['Спасибо за лайк!']}):
+                          ['Спасибо за лайк!', 'Спасибо за лав!', 'Спасибо за огонь!']):
                     
                     mock_db.add_user_reaction.return_value = None  # Новая реакция
                     
@@ -202,17 +202,12 @@ class TestReactionData:
         """Тест существования сообщений реакций."""
         from config import REACTION_MESSAGES
         
-        assert isinstance(REACTION_MESSAGES, dict), "REACTION_MESSAGES должен быть словарем"
-        assert len(REACTION_MESSAGES) > 0, "Словарь сообщений не должен быть пустым"
+        assert isinstance(REACTION_MESSAGES, list), "REACTION_MESSAGES должен быть списком"
+        assert len(REACTION_MESSAGES) > 0, "Список сообщений не должен быть пустым"
         
-        for reaction, messages in REACTION_MESSAGES.items():
-            assert isinstance(reaction, str), "Ключ должен быть строкой"
-            assert isinstance(messages, list), "Значение должно быть списком"
-            assert len(messages) > 0, f"Список сообщений для {reaction} не должен быть пустым"
-            
-            for message in messages:
-                assert isinstance(message, str), "Сообщение должно быть строкой"
-                assert len(message) > 0, "Сообщение не должно быть пустым"
+        for message in REACTION_MESSAGES:
+            assert isinstance(message, str), "Сообщение должно быть строкой"
+            assert len(message) > 0, "Сообщение не должно быть пустым"
 
 
 class TestReactionIntegration:

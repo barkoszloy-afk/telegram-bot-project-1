@@ -45,7 +45,15 @@ async def handle_reaction_callback(update: Update, context: ContextTypes.DEFAULT
         return
     
     # Добавляем реакцию через базу данных
-    previous_reaction = reactions_db.add_user_reaction(user_id, reaction, post_id)
+    try:
+        previous_reaction = reactions_db.add_user_reaction(user_id, reaction, post_id)
+    except Exception as e:
+        logging.error(f"❌ Ошибка базы данных: {e}")
+        try:
+            await query.answer("❌ Произошла ошибка, попробуйте позже")
+        except:
+            pass
+        return
     
     # Определяем сообщение для показа
     if previous_reaction:
