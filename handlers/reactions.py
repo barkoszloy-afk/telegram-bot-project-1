@@ -52,7 +52,11 @@ async def handle_reaction_callback(update: Update, context: ContextTypes.DEFAULT
         message_to_show = "🔄 Вы уже поставили реакцию на этот пост!"
         logging.info(f"🔄 Пользователь {user_id} уже имеет реакцию: {previous_reaction}")
     else:
-        message_to_show = f"✅ {REACTION_MESSAGES[idx]}"
+        # Безопасно получаем сообщение по индексу
+        if idx < len(REACTION_MESSAGES):
+            message_to_show = f"✅ {REACTION_MESSAGES[idx]}"
+        else:
+            message_to_show = "✅ Спасибо за реакцию!"
         logging.info(f"✅ Добавлена новая реакция {reaction} для поста {post_id}")
         
         # Обновляем клавиатуру только если реакция была добавлена

@@ -117,29 +117,27 @@ class TestAdminCommands:
     @pytest.mark.asyncio
     async def test_admin_command_success(self, admin_update, context):
         """Тест успешного выполнения команды /admin администратором."""
-        admin_update.message.reply_text = AsyncMock()
-        
-        with patch('handlers.admin.ADMIN_ID', 123456789):
-            with patch('handlers.admin.create_admin_menu_keyboard') as mock_keyboard:
-                mock_keyboard.return_value = MagicMock()
-                
-                await handle_admin_command(admin_update, context)
-                
-                admin_update.message.reply_text.assert_called_once()
-                args = admin_update.message.reply_text.call_args
-                assert "Админ-панель" in args[0][0]
+        with patch.object(admin_update.message, 'reply_text', new_callable=AsyncMock) as mock_reply:
+            with patch('handlers.admin.ADMIN_ID', 123456789):
+                with patch('handlers.admin.create_admin_menu_keyboard') as mock_keyboard:
+                    mock_keyboard.return_value = MagicMock()
+                    
+                    await handle_admin_command(admin_update, context)
+                    
+                    mock_reply.assert_called_once()
+                    args = mock_reply.call_args
+                    assert "Админ-панель" in args[0][0]
     
     @pytest.mark.asyncio
     async def test_admin_command_access_denied(self, regular_update, context):
         """Тест отказа в доступе для обычного пользователя."""
-        regular_update.message.reply_text = AsyncMock()
-        
-        with patch('handlers.admin.ADMIN_ID', 123456789):
-            await handle_admin_command(regular_update, context)
-            
-            regular_update.message.reply_text.assert_called_once_with(
-                "❌ У вас нет прав администратора"
-            )
+        with patch.object(regular_update.message, 'reply_text', new_callable=AsyncMock) as mock_reply:
+            with patch('handlers.admin.ADMIN_ID', 123456789):
+                await handle_admin_command(regular_update, context)
+                
+                mock_reply.assert_called_once_with(
+                    "❌ У вас нет прав администратора"
+                )
     
     @pytest.mark.asyncio
     async def test_admin_command_no_user(self, context):
