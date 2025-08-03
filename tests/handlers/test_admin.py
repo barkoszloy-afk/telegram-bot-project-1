@@ -49,25 +49,27 @@ def private_chat():
 @pytest.fixture
 def admin_message(admin_user, private_chat):
     """Создание сообщения от администратора."""
-    return Message(
-        message_id=1,
-        date=datetime.now(),
-        chat=private_chat,
-        from_user=admin_user,
-        text="/admin"
-    )
+    message = MagicMock()
+    message.message_id = 1
+    message.date = datetime.now()
+    message.chat = private_chat
+    message.from_user = admin_user
+    message.text = "/admin"
+    message.reply_text = AsyncMock()
+    return message
 
 
 @pytest.fixture
 def regular_message(regular_user, private_chat):
     """Создание сообщения от обычного пользователя."""
-    return Message(
-        message_id=2,
-        date=datetime.now(),
-        chat=private_chat,
-        from_user=regular_user,
-        text="/admin"
-    )
+    message = MagicMock()
+    message.message_id = 2
+    message.date = datetime.now()
+    message.chat = private_chat
+    message.from_user = regular_user
+    message.text = "/admin"
+    message.reply_text = AsyncMock()
+    return message
 
 
 @pytest.fixture
@@ -135,6 +137,8 @@ class TestAdminCommands:
             # Просто проверяем, что функция выполняется без ошибок
             await handle_admin_command(regular_update, context)
             # Функция должна завершиться корректно для не-админа
+            # Проверяем, что reply_text был вызван (пользователю показана ошибка)
+            regular_update.message.reply_text.assert_called_once()
     
     @pytest.mark.asyncio
     async def test_admin_command_no_user(self, context):
