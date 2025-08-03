@@ -118,29 +118,19 @@ def setup_webhook_route():
                     import asyncio
                     
                     def run_async_update():
-                        new_loop = None
                         try:
-                            # Создаем новый event loop для этого потока
-                            new_loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(new_loop)
-                            
-                            # Обрабатываем update
+                            # Используем asyncio.run() вместо создания loop вручную
                             if application:
                                 logger.info(f"🔄 Начинаем обработку update")
-                                new_loop.run_until_complete(application.process_update(update))
+                                asyncio.run(application.process_update(update))
                                 logger.info(f"✅ Webhook обработал update")
                             else:
                                 logger.error("❌ Application отсутствует при обработке")
                             
                         except Exception as e:
                             logger.error(f"❌ Ошибка async обработки: {e}")
-                        finally:
-                            # Безопасно закрываем loop
-                            if new_loop and not new_loop.is_closed():
-                                try:
-                                    new_loop.close()
-                                except:
-                                    pass
+                            import traceback
+                            logger.error(f"📋 Полный traceback: {traceback.format_exc()}")
                     
                     # Запускаем в отдельном потоке
                     thread = threading.Thread(target=run_async_update, daemon=True)
@@ -177,11 +167,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"❌ Ошибка в команде /start: {e}")
         import traceback
         logger.error(f"📋 Полный traceback: {traceback.format_exc()}")
-        if update.message:
-            try:
-                await update.message.reply_text("❌ Произошла ошибка. Попробуйте еще раз.")
-            except:
-                pass
+        # Не отправляем ошибку пользователю в webhook режиме, 
+        # так как это может вызвать дополнительные проблемы с event loop
 
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Универсальный обработчик callback-запросов"""
