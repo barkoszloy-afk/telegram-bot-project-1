@@ -85,6 +85,21 @@ class Localization:
             
         except (KeyError, TypeError) as e:
             logger.warning(f"Ключ локализации не найден: {key} для {locale}: {e}")
+            
+            # Пытаемся fallback на язык по умолчанию
+            if locale != self.default_locale and self.default_locale in self.locales:
+                try:
+                    value = self.locales[self.default_locale]
+                    for part in key.split('.'):
+                        value = value[part]
+                    
+                    if kwargs and isinstance(value, str):
+                        return value.format(**kwargs)
+                    
+                    return str(value)
+                except (KeyError, TypeError):
+                    pass
+            
             return key
     
     def get_available_locales(self) -> list[str]:

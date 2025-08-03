@@ -185,8 +185,8 @@ class TestKeyboardAccessibility:
         
         for row in keyboard.inline_keyboard:
             for button in row:
-                # Проверяем, что текст не состоит только из эмодзи
-                text_without_emoji = ''.join(char for char in button.text if ord(char) < 127)
+                # Проверяем, что текст содержит буквы (не только эмодзи)
+                text_without_emoji = ''.join(char for char in button.text if char.isalpha())
                 assert len(text_without_emoji.strip()) > 0, f"Кнопка '{button.text}' содержит только эмодзи"
                 
                 # Проверяем, что текст не слишком короткий
@@ -219,7 +219,7 @@ class TestKeyboardParameters:
         
         # Проверяем базовые параметры
         assert hasattr(keyboard, 'inline_keyboard')
-        assert isinstance(keyboard.inline_keyboard, list)
+        assert isinstance(keyboard.inline_keyboard, (list, tuple))
         
         # Проверяем, что каждая кнопка имеет необходимые атрибуты
         for row in keyboard.inline_keyboard:
