@@ -1,5 +1,6 @@
 # utils/keyboards.py - Утилиты для создания клавиатур
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from config import REACTION_EMOJIS
 
 def create_main_menu_keyboard():
     """Создает главное меню с категориями"""
@@ -17,6 +18,41 @@ def create_main_menu_keyboard():
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
+
+def create_submenu_keyboard(category: str):
+    """Создает подменю для выбранной категории"""
+    keyboard = [
+        [
+            InlineKeyboardButton("📝 Получить пост", callback_data=f"get_post_{category}"),
+            InlineKeyboardButton("🔔 Подписаться", callback_data=f"subscribe_{category}")
+        ],
+        [
+            InlineKeyboardButton("🔙 Главное меню", callback_data="main_menu")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_reaction_keyboard(post_id: str):
+    """
+    Создает клавиатуру с кнопками-реакциями для поста.
+    Возвращает InlineKeyboardMarkup.
+    """
+    buttons = []
+    # Создаем один ряд с эмодзи
+    row = [
+        InlineKeyboardButton(
+            text=emoji,
+            callback_data=f"reaction_{idx}_{post_id}"
+        ) for idx, emoji in enumerate(REACTION_EMOJIS)
+    ]
+    buttons.append(row)
+    
+    # Добавляем кнопку для просмотра статистики
+    buttons.append([
+        InlineKeyboardButton("📊 Статистика", callback_data=f"stats_{post_id}")
+    ])
+    
+    return InlineKeyboardMarkup(buttons)
 
 def create_back_to_menu_keyboard():
     """Создает кнопку 'Назад в меню'"""
