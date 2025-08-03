@@ -2,14 +2,20 @@
   "posts": {
     "": {
       "reactions": {
-        "heart": 0,
-        "pray": 0,
-        "touched": 0
+        "love": 0,
+        "smile": 0,
+        "fire": 0,
+        "like": 0,
+        "think": 0,
+        "hundred": 0
       },
       "reaction_users": {
-        "heart": [],
-        "pray": [],
-        "touched": []
+        "love": [],
+        "smile": [],
+        "fire": [],
+        "like": [],
+        "think": [],
+        "hundred": []
       }
     }
   }
