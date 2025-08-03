@@ -1,22 +1,17 @@
 {
-  "posts": {
-    "": {
-      "reactions": {
-        "love": 0,
-        "smile": 0,
-        "fire": 0,
-        "like": 0,
-        "think": 0,
-        "hundred": 0
-      },
-      "reaction_users": {
-        "love": [],
-        "smile": [],
-        "fire": [],
-        "like": [],
-        "think": [],
-        "hundred": []
-      }
-    }
+  "reactions": {
+    "heart": 1,
+    "pray": 2,
+    "touched": 0
+  },
+  "reaction_users": {
+    "heart": [
+      "345470935"
+    ],
+    "pray": [
+      "1072568757",
+      "1055576836"
+    ],
+    "touched": []
   }
 }

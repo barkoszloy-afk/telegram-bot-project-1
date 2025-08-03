@@ -1,932 +1,529 @@
-# main_bot_refactored.py - Улучшенная версия бота
-import logging
-import asyncio
-from telegram import Update
-from telegram.ext import (
-    Application, CommandHandler, CallbackQueryHandler, 
-    MessageHandler, filters, ContextTypes
-)
+# --- Основная reply-клавиатура для админа ---
+MAIN_KEYBOARD = [
+    ["Посты", "📝 Пост", "📄 Логи"],
+    ["🛠️ Админ-панель", "📋 Команды"],
+    ["❌ Отмена", "ℹ️ Помощь"]
+]
 
-# Импорты из наших модулей
-from config import (
-    BOT_TOKEN, ADMIN_ID, validate_config,
-    CONNECT_TIMEOUT, READ_TIMEOUT, WRITE_TIMEOUT, POOL_TIMEOUT
-)
-from utils.database import reactions_db
-from utils.keyboards import create_main_menu_keyboard
-from handlers.reactions import handle_reaction_callback
-from handlers.admin import (
-    handle_admin_command, handle_admin_callback, 
-    handle_morning_variant_callback
-)
+# Клавиатура для раздела "Посты"
+POSTS_KEYBOARD = [
+    ["Гороскоп", "Карта дня"],
+    ["Вечернее послание", "Доброе утро"],
+    ["Лунный прогноз", "Свободная публикация"],
+    ["⬅️ Назад"]
+]
+from telegram import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
-# Настройка логирования
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO,
-    handlers=[
-        logging.FileHandler('bot.log', encoding='utf-8'),
-        logging.StreamHandler()
+# Клавиатура для 12 знаков зодиака
+ZODIAC_SIGNS = [
+    ("Овен", "🐏"), ("Телец", "🐂"), ("Близнецы", "👯‍♂️"), ("Рак", "🦀"),
+    ("Лев", "🦁"), ("Дева", "👸"), ("Весы", "⚖️"), ("Скорпион", "🦂"),
+    ("Стрелец", "🏹"), ("Козерог", "🐐"), ("Водолей", "🌊"), ("Рыбы", "🐟")
+]
+
+
+# --- Реакции ---
+REACTION_EMOJIS = ["❤️", "🙏", "🥹"]
+REACTION_NAMES = ["heart", "pray", "touched"]
+REACTION_MESSAGES = [
+    "Спасибо за сердечко!",
+    "Спасибо за поддержку!",
+    "Спасибо за эмоции!"
+]
+def get_reaction_keyboard(reactions):
+    return [
+        [
+            InlineKeyboardButton(f"{REACTION_EMOJIS[i]} {reactions.get(REACTION_NAMES[i], 0)}", callback_data=f"react_{REACTION_NAMES[i]}")
+            for i in range(3)
+        ]
     ]
+
+ZODIAC_INLINE_KEYBOARD = [
+    [InlineKeyboardButton(f"{emoji} {name}", callback_data=f"zodiac_{name}")] for name, emoji in ZODIAC_SIGNS
+]
+# --- Приветственный баннер ---
+WELCOME_BANNER = (
+    "<b>👋 Добро пожаловать!</b>\n"
+    "────────────────────────\n"
+    "<i>Я помогу опубликовать пост в канал.</i>\n"
 )
-logger = logging.getLogger(__name__)
+# --- Общий красиво оформленный текст команд ---
+COMMANDS_TEXT = (
+    "<b>📋 Доступные команды:</b>\n"
+    "\n"
+    "<b>🤖 /start</b> — приветствие и краткая справка\n"
+    "<b>ℹ️ /help</b> — подробная справка\n"
+    "<b>📝 /post</b> — опубликовать пост (текст/медиа)\n"
+    "<b>❌ /cancel</b> — отменить публикацию\n"
+    "<b>📃 /commands</b> — список всех команд\n"
+    "<b>🛠️ /admin</b> — админ-панель (только для администратора)\n"
+    "<b>📊 /stats</b> — статистика (только для администратора)\n"
+    "<b>⚙️ /settings</b> — настройки (только для администратора)"
+)
+# --- Импорт необходимых библиотек ---
+from dotenv import load_dotenv
+import os
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters, ConversationHandler, CallbackQueryHandler
+import logging
+from datetime import datetime
+from telegram.constants import ChatAction
 
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Команда /start - показывает главное меню"""
-    if not update.message:
+# --- Загрузка переменных окружения из .env ---
+load_dotenv()
+BOT_TOKEN = os.getenv('BOT_TOKEN')  # Токен бота берётся из .env
+ADMIN_ID = 345470935  # ID администратора
+CHANNEL_ID = '@eto_vse_ty'  # username канала для публикации
+
+# --- Логирование ---
+logging.basicConfig(
+    filename='bot.log',
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s %(message)s'
+)
+
+# --- Фильтр запрещённых слов ---
+FORBIDDEN_WORDS = ['badword1', 'badword2', 'spam']
+
+# --- Состояния для ConversationHandler ---
+POST_TEXT, POST_MEDIA = range(2)
+
+# --- Админ-панель ---
+async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.effective_user or not update.message:
         return
-        
-    user_name = update.effective_user.first_name if update.effective_user else "друг"
-    welcome_text = f"""
-🌟 Привет, {user_name}!
-
-Добро пожаловать в мир саморазвития и вдохновения! ✨
-
-🎯 **Выберите интересующую вас тему:**
-
-� **Мотивация** - вдохновляющие идеи на каждый день
-🔮 **Эзотерика** - гороскопы, астрология и духовность  
-� **Развитие** - личностный рост и обучение
-� **Здоровье** - забота о теле и разуме
-💝 **Отношения** - гармония в общении и любви
-
-👇 Нажмите на кнопку ниже, чтобы начать:
-"""
-    
-    # Отправляем приветствие с главным меню
-    await update.message.reply_text(
-        welcome_text, 
-        reply_markup=create_main_menu_keyboard()
-    )
-
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Команда /help"""
-    if not update.message:
+    if update.effective_user.id != ADMIN_ID:
+        await update.message.reply_text("У вас нет доступа к админ-панели.")
         return
-        
-    help_text = """
-🔧 Доступные команды:
+    keyboard = [
+        [
+            InlineKeyboardButton("📋 Команды", callback_data='commands'),
+            InlineKeyboardButton("📝 Пост", callback_data='post')
+        ],
+        [
+            InlineKeyboardButton("📄 Логи", callback_data='logs'),
+            InlineKeyboardButton("❌ Отмена", callback_data='cancel')
+        ],
+        [
+            InlineKeyboardButton("📊 Статистика", callback_data='stats'),
+            InlineKeyboardButton("⚙️ Настройки", callback_data='settings')
+        ],
+        [
+            InlineKeyboardButton("🔙 Назад", callback_data='back')
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("<b>🛠️ Админ-панель:</b>", reply_markup=reply_markup, parse_mode="HTML")
 
-/start - Приветствие и информация о боте
-/help - Показать эту справку
-/admin - Админ-панель (только для администратора)
-
-📱 Как пользоваться:
-• Читайте посты в канале
-• Ставьте реакции ❤️🙏🥹
-• Выбирайте свой знак зодиака
-• Участвуйте в утренних голосованиях
-
-💫 Наслаждайтесь контентом!
-"""
-    await update.message.reply_text(help_text)
-
-async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Универсальный обработчик callback-запросов"""
+# --- Обработка нажатий на кнопки админ-панели ---
+async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    if not query or not query.data:
+    if not query or not update.effective_user:
         return
-    
-    data = query.data
-    
-    try:
-        # Главное меню
-        if data == "main_menu":
-            await show_main_menu(update, context)
-        
-        # Категории (основные разделы)
-        elif data.startswith("category_"):
-            await handle_category_selection(update, context)
-        
-        # Подкатегории мотивации
-        elif data.startswith("motivation_"):
-            await handle_motivation_selection(update, context)
-        
-        # Подкатегории эзотерики
-        elif data.startswith("esoteric_"):
-            await handle_esoteric_selection(update, context)
-        
-        # Подкатегории развития
-        elif data.startswith("development_"):
-            await handle_development_selection(update, context)
-        
-        # Подкатегории здоровья
-        elif data.startswith("health_"):
-            await handle_health_selection(update, context)
-        
-        # Подкатегории отношений
-        elif data.startswith("relationships_"):
-            await handle_relationships_selection(update, context)
-        
-        # Реакции на посты
-        elif data.startswith("react_"):
-            await handle_reaction_callback(update, context)
-        
-        # Утренние варианты
-        elif data.startswith("morning_variant"):
-            await handle_morning_variant_callback(update, context)
-        
-        # Админские команды
-        elif data.startswith("admin_"):
-            await handle_admin_callback(update, context)
-        
-        # Зодиакальные знаки
-        elif data.startswith("zodiac_"):
-            await handle_zodiac_selection(update, context)
-        
-        # Неизвестная команда
-        else:
-            await query.answer("❓ Неизвестная команда")
-            logger.warning(f"Неизвестный callback: {data}")
-    
-    except Exception as e:
-        logger.error(f"Ошибка обработки callback {data}: {e}")
+    await query.answer()
+    if update.effective_user.id != ADMIN_ID:
+        await query.edit_message_text("Нет доступа.")
+        return
+    if not hasattr(query, 'data') or query.data is None:
+        await query.edit_message_text("Ошибка: нет данных для обработки.")
+        return
+    if query.data == 'commands':
+        await query.edit_message_text(COMMANDS_TEXT, parse_mode="HTML")
+    elif query.data == 'post':
+        await query.edit_message_text("Введите /post для публикации поста.")
+    elif query.data == 'logs':
         try:
-            await query.answer("❌ Произошла ошибка")
-        except:
-            pass
+            with open('bot.log', 'r') as f:
+                log_content = f.read()[-2000:]
+            await query.edit_message_text(f"Последние логи:\n{log_content}")
+        except Exception:
+            await query.edit_message_text("Лог-файл не найден или пуст.")
+    elif query.data == 'cancel':
+        await query.edit_message_text("Публикация отменена. Используйте /cancel для отмены процесса.")
+    elif query.data == 'stats':
+        # Пример статистики (можно доработать)
+        await query.edit_message_text("📊 <b>Статистика</b>\nПостов: 42\nОшибок: 3", parse_mode="HTML")
+    elif query.data == 'settings':
+        await query.edit_message_text("⚙️ <b>Настройки</b>\n(Здесь можно реализовать изменение параметров)", parse_mode="HTML")
+    elif query.data == 'back':
+        # Возвращаем админ-панель в том же сообщении
+        keyboard = [
+            [
+                InlineKeyboardButton("📋 Команды", callback_data='commands'),
+                InlineKeyboardButton("📝 Пост", callback_data='post')
+            ],
+            [
+                InlineKeyboardButton("📄 Логи", callback_data='logs'),
+                InlineKeyboardButton("❌ Отмена", callback_data='cancel')
+            ],
+            [
+                InlineKeyboardButton("📊 Статистика", callback_data='stats'),
+                InlineKeyboardButton("⚙️ Настройки", callback_data='settings')
+            ],
+            [
+                InlineKeyboardButton("🔙 Назад", callback_data='back')
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text("<b>🛠️ Админ-панель:</b>", reply_markup=reply_markup, parse_mode="HTML")
 
-async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показывает главное меню"""
+# --- Обработка команды /commands ---
+async def commands_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message:
+        return
+    await update.message.reply_text(COMMANDS_TEXT, parse_mode="HTML")
+
+# --- Обработка команды /start ---
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message:
+        return
+    if update.effective_user and update.effective_user.id == ADMIN_ID:
+        reply_markup = ReplyKeyboardMarkup(MAIN_KEYBOARD, resize_keyboard=True)
+        await update.message.reply_text(
+            WELCOME_BANNER + "\n" + COMMANDS_TEXT + "\n\nВы администратор. Используйте кнопки ниже для управления ботом.",
+            parse_mode="HTML",
+            reply_markup=reply_markup
+        )
+    else:
+        await update.message.reply_text(
+            WELCOME_BANNER + "\n" + COMMANDS_TEXT,
+            parse_mode="HTML"
+        )
+# --- Обработка reply-кнопок как команд (BotFather style) ---
+async def handle_main_keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message:
+        return
+    text = update.message.text
+    # Гарантируем, что context.user_data — dict
+    if not hasattr(context, 'user_data') or context.user_data is None:
+        context.user_data = {}
+    if text == "⬅️ Назад":
+        # Если сейчас показывается клавиатура знаков зодиака — возвращаемся к POSTS_KEYBOARD
+        if context.user_data.get('zodiac'):
+            reply_markup = ReplyKeyboardMarkup(POSTS_KEYBOARD, resize_keyboard=True)
+            await update.message.reply_text("Выберите тип поста:", reply_markup=reply_markup)
+            context.user_data.pop('zodiac', None)
+        else:
+            reply_markup = ReplyKeyboardMarkup(MAIN_KEYBOARD, resize_keyboard=True)
+            await update.message.reply_text("Главное меню:", reply_markup=reply_markup)
+        return
+    if text == "Посты":
+        reply_markup = ReplyKeyboardMarkup(POSTS_KEYBOARD, resize_keyboard=True)
+        await update.message.reply_text("Выберите тип поста:", reply_markup=reply_markup)
+    elif text == "📝 Пост":
+        await post_start(update, context)
+    elif text == "📄 Логи":
+        # Выводим логи напрямую, без эмуляции callback
+        if update.effective_user and update.effective_user.id == ADMIN_ID:
+            try:
+                with open('bot.log', 'r') as f:
+                    log_content = f.read()[-2000:]
+                await update.message.reply_text(f"Последние логи:\n{log_content}")
+            except Exception:
+                await update.message.reply_text("Лог-файл не найден или пуст.")
+        else:
+            await update.message.reply_text("Нет доступа.")
+    elif text == "🛠️ Админ-панель":
+        await admin_panel(update, context)
+    elif text == "📋 Команды":
+        await commands_command(update, context)
+    elif text == "❌ Отмена":
+        await cancel(update, context)
+    elif text == "ℹ️ Помощь":
+        await help_command(update, context)
+    elif text == "Вечернее послание":
+        image_path = os.path.expanduser("~/Desktop/images/Послание1 августа.jpg")
+        try:
+            with open(image_path, "rb") as img:
+                context.user_data['preview'] = {
+                    'type': 'photo',
+                    'file': image_path,
+                    'caption': "Вечернее послание. Выберите свой знак зодиака:"
+                }
+                context.user_data['zodiac'] = True
+                # Инициализация счетчиков реакций
+                context.user_data['reactions'] = {k: 0 for k in REACTION_NAMES}
+                # Инициализация пользователей, проголосовавших за каждую реакцию
+                context.user_data['reaction_users'] = {k: set() for k in REACTION_NAMES}
+                # Клавиатура: зодиак + реакции
+                keyboard = ZODIAC_INLINE_KEYBOARD + get_reaction_keyboard(context.user_data['reactions'])
+                await update.message.reply_photo(
+                    img,
+                    caption="Вечернее послание. Выберите свой знак зодиака:",
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+        except Exception:
+            if update.message:
+                await update.message.reply_text("Не удалось найти или отправить изображение.")
+# --- Callback для реакций ---
+async def reaction_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    if not query or not hasattr(query, 'data') or query.data is None:
+        return
+    await query.answer()
+    data = query.data
+    if not isinstance(data, str):
+        return
+    if data.startswith("react_"):
+        reaction = data.replace("react_", "")
+        user_id = update.effective_user.id if update.effective_user else None
+        if not user_id:
+            return
+        # Сохраняем счетчики и пользователей в context.user_data
+        if not hasattr(context, 'user_data') or context.user_data is None:
+            context.user_data = {}
+        if 'reactions' not in context.user_data:
+            context.user_data['reactions'] = {k: 0 for k in REACTION_NAMES}
+        if 'reaction_users' not in context.user_data:
+            context.user_data['reaction_users'] = {k: set() for k in REACTION_NAMES}
+        # Индекс реакции
+        try:
+            idx = REACTION_NAMES.index(reaction)
+        except ValueError:
+            return
+        # Если пользователь еще не голосовал за эту реакцию
+        if user_id not in context.user_data['reaction_users'][reaction]:
+            context.user_data['reactions'][reaction] += 1
+            context.user_data['reaction_users'][reaction].add(user_id)
+            # Благодарственное сообщение (popup)
+            try:
+                await query.answer(REACTION_MESSAGES[idx], show_alert=True)
+            except Exception:
+                pass
+        else:
+            # Уже голосовал — просто обновить счетчик без увеличения и без спама
+            try:
+                await query.answer("Вы уже ставили эту реакцию", show_alert=True)
+            except Exception:
+                pass
+        # Обновляем клавиатуру с новыми счетчиками
+        keyboard = ZODIAC_INLINE_KEYBOARD + get_reaction_keyboard(context.user_data['reactions'])
+        try:
+            await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
+        except Exception:
+            pass
+    elif query.data in [f"{emoji} {name}" for name, emoji in ZODIAC_SIGNS]:
+        if update.message:
+            await update.message.reply_text("Здесь будет индивидуальное послание для выбранного знака зодиака!")
+
+    # Убираем обработку reply-кнопок для зодиака, теперь только inline-кнопки
+# --- Callback для знаков зодиака (inline) ---
+async def zodiac_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    if not query or not hasattr(query, 'data') or query.data is None:
+        return
+    await query.answer()
+    data = query.data
+    if not isinstance(data, str):
+        return
+    if data.startswith("zodiac_"):
+        zodiac_name = data.replace("zodiac_", "")
+        # Сохраняем предпросмотр для выбранного знака
+        if not hasattr(context, 'user_data') or context.user_data is None:
+            context.user_data = {}
+        context.user_data['preview'] = {
+            'type': 'text',
+            'text': f"Послание для знака: {zodiac_name}"
+        }
+        # Всплывающее сообщение для всех
+        await query.answer(f"Вы выбрали: {zodiac_name}", show_alert=True)
+        # Кнопка "Опубликовать" только для админа
+        show_publish = False
+        try:
+            user_id = update.effective_user.id if update.effective_user else None
+            if user_id == ADMIN_ID:
+                show_publish = True
+        except Exception:
+            pass
+        if show_publish:
+            keyboard = [
+                [InlineKeyboardButton("✅ Опубликовать", callback_data='confirm_post')]
+            ]
+            await query.edit_message_caption(
+                caption=f"Послание для знака: {zodiac_name}",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+        else:
+            await query.edit_message_caption(
+                caption=f"Послание для знака: {zodiac_name}",
+                reply_markup=None
+            )
+    elif update.message and hasattr(update.message, 'text') and update.message.text in ["Гороскоп", "Карта дня", "Доброе утро", "Лунный прогноз", "Свободная публикация"]:
+        text = update.message.text
+        # Гарантируем, что context.user_data — dict
+        if not hasattr(context, 'user_data') or context.user_data is None:
+            context.user_data = {}
+        context.user_data['preview'] = {
+            'type': 'text',
+            'text': f"{text}: пример содержимого поста"
+        }
+        keyboard = [
+            [InlineKeyboardButton("✅ Опубликовать", callback_data='confirm_post')],
+            [InlineKeyboardButton("✏️ Отменить/Изменить", callback_data='cancel_post')]
+        ]
+        await update.message.reply_text(f"Предпросмотр поста: {text}\n\nпример содержимого поста", reply_markup=InlineKeyboardMarkup(keyboard))
+# --- Callback для подтверждения/отмены предпросмотра поста ---
+async def preview_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     if not query:
         return
-        
-    text = """
-🏠 **ГЛАВНОЕ МЕНЮ**
-
-Выберите интересующую вас категорию:
-
-💫 **Мотивация** - вдохновение и энергия
-🔮 **Эзотерика** - астрология и духовность  
-🎯 **Развитие** - личностный рост
-🌟 **Здоровье** - забота о себе
-💝 **Отношения** - гармония в общении
-"""
-    
-    await query.edit_message_text(
-        text,
-        reply_markup=create_main_menu_keyboard(),
-        parse_mode='Markdown'
-    )
-
-async def handle_category_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обрабатывает выбор основной категории"""
-    from utils.keyboards import (
-        create_motivation_submenu, create_esoteric_submenu,
-        create_development_submenu, create_health_submenu,
-        create_relationships_submenu
-    )
-    
-    query = update.callback_query
-    if not query or not query.data:
+    await query.answer()
+    # Гарантируем, что context.user_data — dict
+    if not hasattr(context, 'user_data') or context.user_data is None:
+        context.user_data = {}
+    preview = context.user_data.get('preview')
+    if not preview:
+        await query.edit_message_text("Нет предпросмотра для публикации.")
         return
-    
-    category = query.data.replace("category_", "")
-    
-    if category == "motivation":
-        text = """
-💫 **МОТИВАЦИЯ**
-
-Выберите тип вдохновляющего контента:
-
-🌅 **Утренняя мотивация** - энергия на весь день
-🌙 **Вечерние размышления** - итоги и планы
-💪 **Преодоление трудностей** - сила духа
-🎯 **Достижение целей** - путь к успеху
-"""
-        keyboard = create_motivation_submenu()
-        
-    elif category == "esoteric":
-        text = """
-🔮 **ЭЗОТЕРИКА**
-
-Загляните в мир духовности:
-
-🔮 **Гороскоп на день** - звездные советы
-🌙 **Лунный календарь** - влияние луны
-🔢 **Нумерология** - магия чисел
-🃏 **Карты Таро** - древняя мудрость
-"""
-        keyboard = create_esoteric_submenu()
-        
-    elif category == "development":
-        text = """
-🎯 **РАЗВИТИЕ**
-
-Инвестируйте в себя:
-
-🧠 **Развитие мышления** - острый ум
-📚 **Обучение и знания** - новые навыки
-🎨 **Творческое развитие** - раскрытие таланта
-💼 **Карьера и бизнес** - профессиональный рост
-"""
-        keyboard = create_development_submenu()
-        
-    elif category == "health":
-        text = """
-🌟 **ЗДОРОВЬЕ**
-
-Заботьтесь о своем благополучии:
-
-🏃‍♂️ **Физическая активность** - сила тела
-🧘‍♀️ **Ментальное здоровье** - покой души
-🥗 **Питание и диета** - энергия изнутри
-😴 **Сон и отдых** - восстановление сил
-"""
-        keyboard = create_health_submenu()
-        
-    elif category == "relationships":
-        text = """
-💝 **ОТНОШЕНИЯ**
-
-Гармония в общении:
-
-💕 **Любовь и романтика** - дела сердечные
-👨‍👩‍👧‍👦 **Семья и дети** - семейное счастье
-👥 **Дружба и общение** - социальные связи
-🤝 **Рабочие отношения** - профессиональное общение
-"""
-        keyboard = create_relationships_submenu()
-    
-    else:
-        await query.answer("❓ Неизвестная категория")
-        return
-    
-    await query.edit_message_text(
-        text,
-        reply_markup=keyboard,
-        parse_mode='Markdown'
-    )
-
-async def handle_motivation_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обрабатывает выбор в разделе мотивации"""
-    from telegram import InlineKeyboardMarkup, InlineKeyboardButton
-    query = update.callback_query
-    if not query or not query.data:
-        return
-    
-    selection = query.data.replace("motivation_", "")
-    
-    content_map = {
-        "morning": {
-            "title": "🌅 УТРЕННЯЯ МОТИВАЦИЯ",
-            "message": """
-
-Доброе утро! ☀️
-
-Каждый день - это новая возможность стать лучше. 
-Сегодня ты можешь:
-
-✨ Сделать шаг к своей мечте
-💪 Преодолеть то, что вчера казалось невозможным  
-🎯 Приблизиться к своим целям
-🌟 Подарить миру свой уникальный свет
-
-Начни день с улыбки и веры в себя! 💫
-"""
-        },
-        "evening": {
-            "title": "🌙 ВЕЧЕРНИЕ РАЗМЫШЛЕНИЯ", 
-            "message": """
-
-Вечер - время подведения итогов 🌆
-
-За сегодняшний день ты:
-
-🎯 Прожил еще один день своей жизни
-💫 Получил новый опыт и знания
-❤️ Проявил заботу к себе и близким
-🌟 Стал немного мудрее
-
-Отдохни, восстанови силы и готовься к новым свершениям! 💤
-"""
-        },
-        "overcome": {
-            "title": "💪 ПРЕОДОЛЕНИЕ ТРУДНОСТЕЙ",
-            "message": """
-
-Трудности - это ступени к росту 🏔️
-
-Помни:
-
-🔥 Алмаз образуется под давлением
-🌱 Сильные корни растут в бурю
-⭐ Звезды светят ярче в темноте
-💎 Твоя сила проявляется в испытаниях
-
-Каждое препятствие делает тебя сильнее! 💪
-"""
-        },
-        "goals": {
-            "title": "🎯 ДОСТИЖЕНИЕ ЦЕЛЕЙ",
-            "message": """
-
-Цель без плана - всего лишь мечта 📋
-
-Секреты достижения целей:
-
-🎯 Четко сформулируй что хочешь
-📅 Разбей на маленькие шаги  
-📈 Отмечай каждый прогресс
-🔄 Будь гибким в методах
-💫 Верь в свои возможности
-
-Твой успех начинается с первого шага! 🚀
-"""
-        }
-    }
-    
-    if selection in content_map:
-        content = content_map[selection]
-        full_text = f"{content['title']}{content['message']}"
-        
-        # Добавляем кнопки реакций
-        from utils.keyboards import get_reaction_keyboard
-        import uuid
-        post_id = str(uuid.uuid4())[:8]
-        
-        reaction_keyboard = get_reaction_keyboard(post_id)
-        back_button = [[InlineKeyboardButton("⬅️ Назад к мотивации", callback_data='category_motivation')]]
-        
-        keyboard = reaction_keyboard + back_button
-        
-        await query.edit_message_text(
-            full_text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
-        )
-    else:
-        await query.answer("❓ Неизвестная опция")
-
-async def handle_esoteric_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обрабатывает выбор в разделе эзотерики"""
-    from telegram import InlineKeyboardMarkup, InlineKeyboardButton
-    query = update.callback_query
-    if not query or not query.data:
-        return
-    
-    selection = query.data.replace("esoteric_", "")
-    
-    if selection == "horoscope":
-        # Показываем выбор знака зодиака
-        text = """
-🔮 **ГОРОСКОП НА ДЕНЬ**
-
-Выберите свой знак зодиака для персонального гороскопа:
-
-✨ Каждый знак получит уникальное предсказание на сегодня
-"""
-        from utils.keyboards import create_zodiac_keyboard
-        await query.edit_message_text(
-            text,
-            reply_markup=create_zodiac_keyboard(),
-            parse_mode='Markdown'
-        )
-    
-    elif selection == "moon":
-        content = {
-            "title": "🌙 ЛУННЫЙ КАЛЕНДАРЬ",
-            "message": """
-
-Луна влияет на наши эмоции, энергию и жизненные циклы! 🌕
-
-🌙 **Фазы Луны и их влияние:**
-
-🌑 **Новолуние** - время новых начинаний и планов
-🌓 **Растущая Луна** - активность, развитие проектов
-🌕 **Полнолуние** - пик энергии, завершение дел
-🌗 **Убывающая Луна** - отпускание, очищение, отдых
-
-✨ **Сегодняшний совет:** Следи за лунными циклами и планируй дела в гармонии с ними!
-
-Пусть Луна станет твоим помощником! 🌙
-"""
-        }
-        
-        full_text = f"{content['title']}{content['message']}"
-        
-        from utils.keyboards import get_reaction_keyboard
-        import uuid
-        post_id = str(uuid.uuid4())[:8]
-        
-        reaction_keyboard = get_reaction_keyboard(post_id)
-        back_button = [[InlineKeyboardButton("⬅️ Назад к эзотерике", callback_data='category_esoteric')]]
-        
-        keyboard = reaction_keyboard + back_button
-        
-        await query.edit_message_text(
-            full_text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
-        )
-    
-    elif selection == "numerology":
-        content = {
-            "title": "🔢 НУМЕРОЛОГИЯ",
-            "message": """
-
-Числа несут в себе тайную мудрость и энергию! ✨
-
-🔢 **Значение чисел в жизни:**
-
-1️⃣ **Единица** - лидерство, новые начинания
-2️⃣ **Двойка** - партнерство, сотрудничество
-3️⃣ **Тройка** - творчество, самовыражение
-7️⃣ **Семерка** - духовность, мудрость
-8️⃣ **Восьмерка** - материальный успех, власть
-9️⃣ **Девятка** - завершение, служение людям
-
-💫 **Практика:** Обращай внимание на повторяющиеся числа - это знаки Вселенной!
-
-Открой язык чисел! 🔮
-"""
-        }
-        
-        full_text = f"{content['title']}{content['message']}"
-        
-        from utils.keyboards import get_reaction_keyboard
-        import uuid
-        post_id = str(uuid.uuid4())[:8]
-        
-        reaction_keyboard = get_reaction_keyboard(post_id)
-        back_button = [[InlineKeyboardButton("⬅️ Назад к эзотерике", callback_data='category_esoteric')]]
-        
-        keyboard = reaction_keyboard + back_button
-        
-        await query.edit_message_text(
-            full_text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
-        )
-    
-    elif selection == "tarot":
-        content = {
-            "title": "🃏 КАРТЫ ТАРО",
-            "message": """
-
-Таро - древний инструмент познания себя и своего пути! 🔮
-
-🃏 **Мудрость Таро:**
-
-🌟 **Старшие Арканы** - важные жизненные уроки
-⚔️ **Мечи** - мысли, решения, конфликты  
-🏆 **Жезлы** - энергия, творчество, страсть
-💧 **Кубки** - эмоции, любовь, отношения
-💰 **Пентакли** - материальный мир, здоровье
-
-✨ **Совет дня:** Доверься своей интуиции - она знает ответы на твои вопросы!
-
-Позволь картам открыть тебе путь! 🌙
-"""
-        }
-        
-        full_text = f"{content['title']}{content['message']}"
-        
-        from utils.keyboards import get_reaction_keyboard
-        import uuid
-        post_id = str(uuid.uuid4())[:8]
-        
-        reaction_keyboard = get_reaction_keyboard(post_id)
-        back_button = [[InlineKeyboardButton("⬅️ Назад к эзотерике", callback_data='category_esoteric')]]
-        
-        keyboard = reaction_keyboard + back_button
-        
-        await query.edit_message_text(
-            full_text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
-        )
-    
-    else:
-        await query.answer("🔮 Неизвестная опция!")
-
-async def handle_development_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обрабатывает выбор в разделе развития"""
-    from telegram import InlineKeyboardMarkup, InlineKeyboardButton
-    query = update.callback_query
-    if not query or not query.data:
-        return
-    
-    selection = query.data.replace("development_", "")
-    
-    content_map = {
-        "thinking": {
-            "title": "🧠 РАЗВИТИЕ МЫШЛЕНИЯ",
-            "message": """
-
-Твой мозг - это мышца, которую нужно тренировать! 💪
-
-🎯 **Упражнения для ума:**
-
-🧩 Решай головоломки и логические задачи
-📚 Читай книги разных жанров
-🎲 Играй в интеллектуальные игры
-🤔 Задавай себе вопросы "Почему?" и "Как?"
-
-💡 **Совет дня:** Изучи что-то новое сегодня - даже 15 минут имеют значение!
-
-Развивай свой интеллект каждый день! 🌟
-"""
-        },
-        "learning": {
-            "title": "📚 ОБУЧЕНИЕ И ЗНАНИЯ",
-            "message": """
-
-Знания - это сила, которую никто не сможет отнять! 🎓
-
-📖 **Способы обучения:**
-
-🎥 Смотри образовательные видео
-📱 Используй приложения для изучения языков
-👥 Общайся с экспертами в интересных тебе областях
-✍️ Веди дневник новых знаний
-
-🌟 **Помни:** Каждый день без обучения - потерянный день!
-
-Инвестируй в свое образование! 💎
-"""
-        },
-        "creativity": {
-            "title": "� ТВОРЧЕСКОЕ РАЗВИТИЕ",
-            "message": """
-
-Творчество - это способность видеть мир по-новому! ✨
-
-🎭 **Развиваем креативность:**
-
-🖌️ Рисуй, лепи, создавай своими руками
-📝 Пиши стихи, рассказы, ведите блог
-🎵 Слушай новую музыку, играй на инструментах
-🌈 Экспериментируй с цветами и формами
-
-💫 **Секрет:** Не бойся ошибок - они часть творческого процесса!
-
-Раскрой свой творческий потенциал! 🦋
-"""
-        },
-        "career": {
-            "title": "💼 КАРЬЕРА И БИЗНЕС",
-            "message": """
-
-Успех в карьере начинается с правильного мышления! 🚀
-
-💼 **Ключи к успеху:**
-
-🎯 Ставь четкие профессиональные цели
-📈 Развивай навыки, востребованные на рынке
-🤝 Строй полезные связи и нетворкинг
-📊 Анализируй свои достижения и ошибки
-
-💡 **Правило:** Твоя зарплата = ценность, которую ты приносишь!
-
-Строй карьеру мечты! 👑
-"""
-        }
-    }
-    
-    if selection in content_map:
-        content = content_map[selection]
-        full_text = f"{content['title']}{content['message']}"
-        
-        # Добавляем кнопки реакций
-        from utils.keyboards import get_reaction_keyboard
-        import uuid
-        post_id = str(uuid.uuid4())[:8]
-        
-        reaction_keyboard = get_reaction_keyboard(post_id)
-        back_button = [[InlineKeyboardButton("⬅️ Назад к развитию", callback_data='category_development')]]
-        
-        keyboard = reaction_keyboard + back_button
-        
-        await query.edit_message_text(
-            full_text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
-        )
-    else:
-        await query.answer("❓ Неизвестная опция")
-
-async def handle_health_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обрабатывает выбор в разделе здоровья"""
-    from telegram import InlineKeyboardMarkup, InlineKeyboardButton
-    query = update.callback_query
-    if not query or not query.data:
-        return
-    
-    selection = query.data.replace("health_", "")
-    
-    content_map = {
-        "fitness": {
-            "title": "🏃‍♂️ ФИЗИЧЕСКАЯ АКТИВНОСТЬ",
-            "message": """
-
-Движение - это жизнь! Твое тело благодарит тебя за каждый шаг! 💪
-
-🏋️ **Простые упражнения:**
-
-🚶‍♀️ Ходи пешком минимум 10 000 шагов в день
-💃 Танцуй под любимую музыку 15 минут
-🧘‍♀️ Делай утреннюю зарядку или йогу
-🏊‍♀️ Плавай или занимайся любимым спортом
-
-⚡ **Энергия:** Физическая активность дает больше энергии, чем отнимает!
-
-Позаботься о своем теле сегодня! 🌟
-"""
-        },
-        "mental": {
-            "title": "🧘‍♀️ МЕНТАЛЬНОЕ ЗДОРОВЬЕ",
-            "message": """
-
-Твое душевное равновесие - основа счастливой жизни! 🕊️
-
-🧠 **Техники для ментального здоровья:**
-
-🧘 Медитируй 10-15 минут в день
-📝 Веди дневник благодарности
-🌸 Проводи время на природе
-💚 Окружай себя позитивными людьми
-
-💡 **Помни:** Просить помощи - это признак силы, а не слабости!
-
-Береги свою душу! ✨
-"""
-        },
-        "nutrition": {
-            "title": "🥗 ПИТАНИЕ И ДИЕТА",
-            "message": """
-
-Ты - то, что ты ешь! Питание влияет на твое самочувствие и энергию! 🌱
-
-🍎 **Принципы здорового питания:**
-
-💧 Пей достаточно воды (1.5-2 литра в день)
-🥬 Ешь больше овощей и фруктов
-🍚 Выбирай цельнозерновые продукты
-🐟 Включай белок в каждый прием пищи
-
-🌟 **Секрет:** Маленькие изменения дают большие результаты!
-
-Наполни тело энергией! 🔋
-"""
-        },
-        "sleep": {
-            "title": "😴 СОН И ОТДЫХ",
-            "message": """
-
-Качественный сон - основа продуктивности и здоровья! 💤
-
-🌙 **Секреты здорового сна:**
-
-⏰ Ложись спать в одно и то же время
-📱 Не используй гаджеты за час до сна
-🌡️ Спи в прохладной и темной комнате
-📖 Читай перед сном или слушай спокойную музыку
-
-✨ **Факт:** Во время сна мозг "убирается" и восстанавливается!
-
-Подари себе качественный отдых! 🌟
-"""
-        }
-    }
-    
-    if selection in content_map:
-        content = content_map[selection]
-        full_text = f"{content['title']}{content['message']}"
-        
-        # Добавляем кнопки реакций
-        from utils.keyboards import get_reaction_keyboard
-        import uuid
-        post_id = str(uuid.uuid4())[:8]
-        
-        reaction_keyboard = get_reaction_keyboard(post_id)
-        back_button = [[InlineKeyboardButton("⬅️ Назад к здоровью", callback_data='category_health')]]
-        
-        keyboard = reaction_keyboard + back_button
-        
-        await query.edit_message_text(
-            full_text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
-        )
-    else:
-        await query.answer("❓ Неизвестная опция")
-
-async def handle_relationships_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обрабатывает выбор в разделе отношений"""
-    from telegram import InlineKeyboardMarkup, InlineKeyboardButton
-    query = update.callback_query
-    if not query or not query.data:
-        return
-    
-    selection = query.data.replace("relationships_", "")
-    
-    content_map = {
-        "love": {
-            "title": "💕 ЛЮБОВЬ И РОМАНТИКА",
-            "message": """
-
-Любовь - это не только чувство, но и ежедневный выбор! 💝
-
-💞 **Секреты крепких отношений:**
-
-💬 Общайтесь открыто и честно
-🎁 Делайте маленькие приятности друг другу
-👂 Слушайте партнера без осуждения
-🌹 Не забывайте про романтику в будни
-
-✨ **Правда:** Лучшие отношения строятся на дружбе и взаимном уважении!
-
-Цени любовь в своей жизни! 💖
-"""
-        },
-        "family": {
-            "title": "👨‍👩‍👧‍👦 СЕМЬЯ И ДЕТИ",
-            "message": """
-
-Семья - это твоя крепость и источник силы! 🏠
-
-👨‍👩‍👧‍👦 **Гармония в семье:**
-
-🕰️ Проводите качественное время вместе
-📞 Поддерживайте связь с родными
-🎯 Создавайте семейные традиции и ритуалы
-💕 Выражайте любовь словами и поступками
-
-🌟 **Мудрость:** Дети учатся больше от того, что видят, чем от того, что слышат!
-
-Береги семейные узы! 👨‍👩‍👧‍👦
-"""
-        },
-        "friendship": {
-            "title": "👥 ДРУЖБА И ОБЩЕНИЕ",
-            "message": """
-
-Настоящие друзья - это сокровище, которое нужно ценить! �
-
-🤝 **Крепкая дружба:**
-
-🎉 Радуйтесь успехам друзей искренне
-🤗 Поддерживайте в трудные моменты
-🎭 Будьте собой в общении
-📅 Не забывайте поддерживать связь
-
-💡 **Секрет:** Чтобы иметь друга, нужно самому быть другом!
-
-Цени дружбу! 🌟
-"""
-        },
-        "work": {
-            "title": "🤝 РАБОЧИЕ ОТНОШЕНИЯ",
-            "message": """
-
-Хорошие отношения на работе делают карьеру успешнее! 💼
-
-👔 **Профессиональное общение:**
-
-🎯 Будь надежным и выполняй обещания
-💬 Общайся вежливо и конструктивно
-🤝 Помогай коллегам, когда это возможно
-📈 Делись знаниями и опытом
-
-🏆 **Принцип:** Успех команды = твой личный успех!
-
-Строй профессиональные связи! 🚀
-"""
-        }
-    }
-    
-    if selection in content_map:
-        content = content_map[selection]
-        full_text = f"{content['title']}{content['message']}"
-        
-        # Добавляем кнопки реакций
-        from utils.keyboards import get_reaction_keyboard
-        import uuid
-        post_id = str(uuid.uuid4())[:8]
-        
-        reaction_keyboard = get_reaction_keyboard(post_id)
-        back_button = [[InlineKeyboardButton("⬅️ Назад к отношениям", callback_data='category_relationships')]]
-        
-        keyboard = reaction_keyboard + back_button
-        
-        await query.edit_message_text(
-            full_text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
-        )
-    else:
-        await query.answer("❓ Неизвестная опция")
-
-async def handle_zodiac_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обрабатывает выбор знака зодиака"""
-    from telegram import InlineKeyboardMarkup, InlineKeyboardButton
-    query = update.callback_query
-    if not query or not query.data:
-        return
-    
-    sign = query.data.replace("zodiac_", "").title()
-    
-    horoscope_text = f"""
-🔮 **ГОРОСКОП ДЛЯ {sign.upper()}**
-
-Сегодня звезды благосклонны к вам! ✨
-
-💫 **Общая энергетика дня:** Высокая
-🎯 **Рекомендации:** Действуйте смело и уверенно
-💝 **Отношения:** Время для откровенных разговоров  
-💼 **Карьера:** Благоприятный день для новых начинаний
-🌟 **Совет дня:** Доверьтесь своей интуиции
-
-Пусть день принесет вам радость и успех! 🌈
-"""
-    
-    # Добавляем кнопки реакций и возврата
-    from utils.keyboards import get_reaction_keyboard
-    import uuid
-    post_id = str(uuid.uuid4())[:8]
-    
-    reaction_keyboard = get_reaction_keyboard(post_id)
-    back_button = [[InlineKeyboardButton("⬅️ Назад к выбору знака", callback_data='esoteric_horoscope')]]
-    
-    keyboard = reaction_keyboard + back_button
-    
-    await query.edit_message_text(
-        horoscope_text,
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode='Markdown'
-    )
-
-async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик текстовых сообщений"""
-    if not update.message or not update.message.text:
-        return
-    
-    text = update.message.text.lower()
-    
-    # Простые ответы на ключевые слова
-    if any(word in text for word in ['привет', 'hello', 'hi']):
-        await update.message.reply_text("🌟 Привет! Добро пожаловать!")
-    elif any(word in text for word in ['спасибо', 'благодарю', 'thanks']):
-        await update.message.reply_text("💫 Всегда пожалуйста!")
-    elif any(word in text for word in ['гороскоп', 'астрология']):
-        await update.message.reply_text("🔮 Следите за нашими ежедневными гороскопами в канале!")
-
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
-    """Глобальный обработчик ошибок"""
-    logger.error(f"Ошибка обновления: {context.error}")
-    
-    if isinstance(update, Update) and update.effective_message:
+    if query.data == 'confirm_post':
+        if preview['type'] == 'photo':
+            with open(preview['file'], 'rb') as img:
+                await context.bot.send_photo(chat_id=CHANNEL_ID, photo=img, caption=preview['caption'])
+        elif preview['type'] == 'text':
+            await context.bot.send_message(chat_id=CHANNEL_ID, text=preview['text'])
+        # После публикации убираем все кнопки
         try:
-            await update.effective_message.reply_text(
-                "❌ Произошла ошибка. Пожалуйста, попробуйте позже."
-            )
-        except:
-            pass
-
-def main():
-    """Главная функция запуска бота"""
-    try:
-        # Валидация конфигурации
-        validate_config()
-        logger.info("✅ Конфигурация проверена")
-        
-        if not BOT_TOKEN:
-            raise ValueError("BOT_TOKEN не установлен")
-        
-        # Создание приложения с таймаутами для Railway
-        application = (
-            Application.builder()
-            .token(BOT_TOKEN)
-            .connect_timeout(CONNECT_TIMEOUT)
-            .read_timeout(READ_TIMEOUT)
-            .write_timeout(WRITE_TIMEOUT)
-            .pool_timeout(POOL_TIMEOUT)
-            .build()
+            await query.edit_message_caption(caption="Пост опубликован в канал!", reply_markup=None)
+        except Exception:
+            await query.edit_message_text("Пост опубликован в канал!", reply_markup=None)
+        if context.user_data and isinstance(context.user_data, dict):
+            context.user_data.pop('preview', None)
+    elif query.data == 'cancel_post':
+        await query.edit_message_text("Публикация отменена. Вы можете скорректировать пост и попробовать снова.")
+        if context.user_data and isinstance(context.user_data, dict):
+            context.user_data.pop('preview', None)
+# --- Обработка reply-кнопки "🛠️ Админ-панель" ---
+async def admin_panel_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from telegram import ReplyKeyboardRemove
+    if update.message and update.message.text == "🛠️ Админ-панель" and update.effective_user and update.effective_user.id == ADMIN_ID:
+        # Убираем reply-клавиатуру и показываем inline-админ-панель
+        await update.message.reply_text(
+            "<b>🛠️ Админ-панель:</b>",
+            reply_markup=ReplyKeyboardRemove(),
+            parse_mode="HTML"
         )
-        
-        # Регистрация обработчиков команд
-        application.add_handler(CommandHandler("start", start_command))
-        application.add_handler(CommandHandler("help", help_command))
-        application.add_handler(CommandHandler("admin", handle_admin_command))
-        
-        # Регистрация обработчика callback-запросов
-        application.add_handler(CallbackQueryHandler(handle_callback_query))
-        
-        # Регистрация обработчика текстовых сообщений
-        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
-        
-        # Регистрация обработчика ошибок
-        application.add_error_handler(error_handler)
-        
-        # Запуск бота
-        logger.info("🤖 Бот запущен и готов к работе!")
-        application.run_polling(drop_pending_updates=True)
-        
-    except Exception as e:
-        logger.error(f"❌ Критическая ошибка запуска бота: {e}")
-        raise
+        await admin_panel(update, context)
 
+# --- Обработка команды /help ---
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message:
+        return
+    await update.message.reply_text(
+        "<b>ℹ️ Помощь</b>\n\n"
+        "Я могу публиковать <b>текст</b> и <b>медиа</b> в канал.\n"
+        "Только <b>админ</b> может публиковать.\n\n"
+        "<b>Как опубликовать пост:</b>\n"
+        "1️⃣ Введите /post\n"
+        "2️⃣ Отправьте текст или медиа\n"
+        "3️⃣ Подтвердите публикацию\n\n"
+        "<b>Команды:</b>\n"
+        "📝 /post — начать публикацию поста\n"
+        "❌ /cancel — отменить публикацию\n"
+        "📋 /commands — список всех команд\n"
+        "🛠️ /admin — админ-панель\n"
+        "📊 /stats — статистика (админ)\n"
+        "⚙️ /settings — настройки (админ)\n\n"
+        "<i>Просто отправь текст или медиа после /post.</i>"
+        , parse_mode="HTML"
+    )
+
+# --- Обработка команды /cancel ---
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message:
+        return ConversationHandler.END
+    await update.message.reply_text("Публикация отменена.")
+    return ConversationHandler.END
+
+# --- Модерация и фильтр запрещённых слов ---
+def contains_forbidden(text):
+    return any(word.lower() in (text or '').lower() for word in FORBIDDEN_WORDS)
+
+# --- ConversationHandler: публикация поста ---
+async def post_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.effective_user or not update.message:
+        return ConversationHandler.END
+    if update.effective_user.id != ADMIN_ID:
+        await update.message.reply_text("У вас нет прав для публикации.")
+        return ConversationHandler.END
+    await update.message.reply_text("Отправьте текст или медиа для публикации, либо /cancel для отмены.")
+    return POST_TEXT
+
+async def post_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.effective_user:
+        return ConversationHandler.END
+    text = update.message.text or ""
+    if contains_forbidden(text):
+        await update.message.reply_text("В сообщении обнаружены запрещённые слова. Публикация отклонена.")
+        logging.info(f"Отклонено сообщение с запрещёнными словами: {text}")
+        return ConversationHandler.END
+    if not text:
+        await update.message.reply_text("Пустое сообщение не может быть опубликовано.")
+        return POST_TEXT
+    await context.bot.send_message(chat_id=CHANNEL_ID, text=text)
+    await update.message.reply_text("Пост опубликован в канал!")
+    logging.info(f"Опубликован текст: {text}")
+    return ConversationHandler.END
+
+async def post_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.effective_user:
+        return ConversationHandler.END
+    if update.message.photo:
+        file_id = update.message.photo[-1].file_id
+        caption = update.message.caption or ""
+        if contains_forbidden(caption):
+            await update.message.reply_text("В подписи обнаружены запрещённые слова. Публикация отклонена.")
+            logging.info(f"Отклонено фото с запрещёнными словами: {caption}")
+            return ConversationHandler.END
+        await context.bot.send_photo(chat_id=CHANNEL_ID, photo=file_id, caption=caption)
+        await update.message.reply_text("Фото опубликовано в канал!")
+        logging.info(f"Опубликовано фото: {caption}")
+        return ConversationHandler.END
+    if update.message.document:
+        file_id = update.message.document.file_id
+        caption = update.message.caption or ""
+        if contains_forbidden(caption):
+            await update.message.reply_text("В подписи обнаружены запрещённые слова. Публикация отклонена.")
+            logging.info(f"Отклонён документ с запрещёнными словами: {caption}")
+            return ConversationHandler.END
+        await context.bot.send_document(chat_id=CHANNEL_ID, document=file_id, caption=caption)
+        await update.message.reply_text("Документ опубликован в канал!")
+        logging.info(f"Опубликован документ: {caption}")
+        return ConversationHandler.END
+    if update.message.video:
+        file_id = update.message.video.file_id
+
+# --- Запуск бота ---
 if __name__ == '__main__':
-    main()
+    import sys
+    print(f"Используется Python: {sys.executable}")
+    if not BOT_TOKEN:
+        print("[ОШИБКА] BOT_TOKEN не найден. Проверьте файл .env и переменную BOT_TOKEN.")
+        exit(1)
+    print("Инициализация Telegram-бота...")
+    app = ApplicationBuilder().token(BOT_TOKEN).connect_timeout(60).read_timeout(60).build()
+    # Команды
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help_command))
+    # ConversationHandler для публикации постов
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("post", post_start)],
+        states={
+            POST_TEXT: [MessageHandler(filters.TEXT & (~filters.COMMAND), post_text),
+                        MessageHandler(filters.PHOTO | filters.Document.ALL | filters.VIDEO, post_media)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+    app.add_handler(conv_handler)
+    app.add_handler(CommandHandler("commands", commands_command))
+    app.add_handler(CommandHandler("admin", admin_panel))
+    app.add_handler(CallbackQueryHandler(admin_callback, pattern=None))
+    app.add_handler(CallbackQueryHandler(preview_callback, pattern='^(confirm_post|cancel_post)$'))
+    app.add_handler(CallbackQueryHandler(zodiac_callback, pattern=r'^zodiac_.*$'))
+    app.add_handler(CallbackQueryHandler(reaction_callback, pattern=r'^react_.*$'))
+    # Обрабатываем все кнопки из MAIN_KEYBOARD и POSTS_KEYBOARD
+    all_buttons = [btn for row in MAIN_KEYBOARD for btn in row] + [btn for row in POSTS_KEYBOARD for btn in row]
+    regex_pattern = "^(" + "|".join(map(lambda s: s.replace("(", "\\(").replace(")", "\\)").replace(".", "\\.").replace("+", "\\+").replace("?", "\\?").replace("|", "\\|"), all_buttons)) + ")$"
+    app.add_handler(MessageHandler(filters.TEXT & filters.Regex(regex_pattern), handle_main_keyboard))
+    print("Бот запущен. Ожидание сообщений... (Ctrl+C для остановки)")
+    app.run_polling()

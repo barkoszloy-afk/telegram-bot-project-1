@@ -1,17 +1,4 @@
 {
     "python-envs.defaultEnvManager": "ms-python.python:pyenv",
-    "python-envs.pythonProjects": [],
-    "files.associations": {
-        "Procfile": "plaintext",
-        "Dockerfile": "dockerfile",
-        "railway.json": "jsonc"
-    },
-    "python.analysis.exclude": [
-        "**/Procfile"
-    ],
-    "python.testing.pytestArgs": [
-        "."
-    ],
-    "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python-envs.pythonProjects": []
 }

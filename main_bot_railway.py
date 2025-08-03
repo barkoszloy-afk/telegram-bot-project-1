@@ -402,7 +402,7 @@ async def setup_webhook():
     # Инициализация приложения
     await application.initialize()
     
-    # Установка команд бота
+    # Установка команд бота в меню Telegram
     await setup_bot_commands(application)
     
     # Получение Railway URL для webhook
@@ -527,6 +527,12 @@ def run_local_polling():
     application.add_error_handler(error_handler)
     
     logger.info("🔄 Запуск polling режима...")
+    
+    # Устанавливаем команды перед запуском polling
+    async def post_init(application: Application) -> None:
+        await setup_bot_commands(application)
+    
+    application.post_init = post_init
     application.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
