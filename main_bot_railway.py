@@ -201,7 +201,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         except:
             pass
 
-async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает главное меню"""
     try:
         logger.info("🔍 Начинаем show_main_menu")
@@ -260,13 +260,13 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         logger.error(f"📋 Полный traceback: {traceback.format_exc()}")
         raise
 
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик ошибок"""
     logger.error(f"Exception while handling an update: {context.error}")
 
 # ================== SETUP И ЗАПУСК ==================
 
-def run_flask() -> None:
+def run_flask():
     """Запуск Flask сервера в отдельном потоке"""
     port = int(os.environ.get('PORT', 8000))
     app.run(host='0.0.0.0', port=port, debug=False)
