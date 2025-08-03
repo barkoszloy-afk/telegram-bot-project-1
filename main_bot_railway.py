@@ -142,10 +142,14 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         # Показываем главное меню
+        logger.info("📋 Вызываем show_main_menu...")
         await show_main_menu(update, context)
+        logger.info("✅ show_main_menu выполнена успешно")
 
     except Exception as e:
         logger.error(f"❌ Ошибка в команде /start: {e}")
+        import traceback
+        logger.error(f"📋 Полный traceback: {traceback.format_exc()}")
         if update.message:
             try:
                 await update.message.reply_text("❌ Произошла ошибка. Попробуйте еще раз.")
@@ -183,14 +187,18 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает главное меню"""
-    query = getattr(update, 'callback_query', None)
-    message = getattr(update, 'message', None)
-    
-    # Получаем имя пользователя
-    user = query.from_user if query else update.effective_user
-    user_name = user.first_name if user and user.first_name else "друг"
+    try:
+        logger.info("🔍 Начинаем show_main_menu")
+        query = getattr(update, 'callback_query', None)
+        message = getattr(update, 'message', None)
+        logger.info(f"📋 query: {query is not None}, message: {message is not None}")
         
-    text = f"""🌟 Привет, {user_name}!
+        # Получаем имя пользователя
+        user = query.from_user if query else update.effective_user
+        user_name = user.first_name if user and user.first_name else "друг"
+        logger.info(f"👤 Пользователь: {user_name}")
+            
+        text = f"""🌟 Привет, {user_name}!
 
 Добро пожаловать в бота! ✨
 
@@ -204,21 +212,37 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 👇 Выберите категорию:
 """
-    
-    # Отображаем или редактируем главное меню
-    if query:
-        await query.answer()
-        await query.edit_message_text(
-            text,
-            reply_markup=create_main_menu_keyboard(),
-            parse_mode='Markdown'
-        )
-    elif message:
-        await message.reply_text(
-            text,
-            reply_markup=create_main_menu_keyboard(),
-            parse_mode='Markdown'
-        )
+        
+        logger.info("⌨️ Создаем клавиатуру...")
+        keyboard = create_main_menu_keyboard()
+        logger.info(f"✅ Клавиатура создана: {len(keyboard.inline_keyboard)} рядов")
+        
+        # Отображаем или редактируем главное меню
+        if query:
+            logger.info("📝 Редактируем сообщение через callback...")
+            await query.answer()
+            await query.edit_message_text(
+                text,
+                reply_markup=keyboard,
+                parse_mode='Markdown'
+            )
+            logger.info("✅ Сообщение отредактировано")
+        elif message:
+            logger.info("📤 Отправляем новое сообщение...")
+            await message.reply_text(
+                text,
+                reply_markup=keyboard,
+                parse_mode='Markdown'
+            )
+            logger.info("✅ Сообщение отправлено")
+        else:
+            logger.warning("⚠️ Нет ни query, ни message!")
+            
+    except Exception as e:
+        logger.error(f"❌ Ошибка в show_main_menu: {e}")
+        import traceback
+        logger.error(f"📋 Полный traceback: {traceback.format_exc()}")
+        raise
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик ошибок"""
