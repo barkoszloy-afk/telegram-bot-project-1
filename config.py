@@ -12,6 +12,9 @@ BOT_TOKEN = os.getenv('BOT_TOKEN')
 # ID администратора
 ADMIN_ID = int(os.getenv('ADMIN_ID', '0'))
 
+# Идентификатор канала для публикаций
+CHANNEL_ID = os.getenv('CHANNEL_ID', '')
+
 # Настройки таймаутов для Railway
 CONNECT_TIMEOUT = 30
 READ_TIMEOUT = 30
@@ -48,7 +51,11 @@ def validate_config():
     if not ADMIN_ID:
         raise ValueError('ADMIN_ID не найден в переменных окружения')
 
+    if not CHANNEL_ID:
+        raise ValueError('CHANNEL_ID не найден в переменных окружения')
+
     masked = f'{BOT_TOKEN[:4]}...{BOT_TOKEN[-4:]}' if BOT_TOKEN else 'N/A'
     logger.info('✅ Конфигурация загружена успешно')
     logger.info('🤖 Токен бота: %s', masked)
     logger.info('👤 ID администратора: %s', ADMIN_ID)
+    logger.info('📢 ID канала: %s', CHANNEL_ID)

@@ -1,6 +1,9 @@
 # utils/keyboards.py - Утилиты для создания клавиатур
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from config import REACTION_EMOJIS
+from typing import Dict
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
+
+from config import REACTION_EMOJIS, REACTION_NAMES
 
 def create_main_menu_keyboard():
     """Создает главное меню с категориями"""
@@ -83,3 +86,38 @@ def create_zodiac_keyboard():
     keyboard.append([InlineKeyboardButton("🔙 Главное меню", callback_data="main_menu")])
     
     return InlineKeyboardMarkup(keyboard)
+
+
+def create_admin_main_keyboard() -> ReplyKeyboardMarkup:
+    """Клавиатура главного меню для администратора"""
+    keyboard = [
+        ["Посты", "📝 Пост", "📄 Логи"],
+        ["🛠️ Админ-панель", "📋 Команды"],
+        ["❌ Отмена", "ℹ️ Помощь"],
+    ]
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+
+def create_posts_keyboard() -> ReplyKeyboardMarkup:
+    """Клавиатура раздела публикаций"""
+    keyboard = [
+        ["Гороскоп", "Карта дня"],
+        ["Вечернее послание", "Доброе утро"],
+        ["Лунный прогноз", "Свободная публикация"],
+        ["⬅️ Назад"],
+    ]
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+
+def create_reaction_buttons(reactions: Dict[str, int]):
+    """Создает ряд кнопок с реакциями и счетчиками"""
+    if len(REACTION_EMOJIS) != len(REACTION_NAMES):
+        raise ValueError("REACTION_EMOJIS and REACTION_NAMES lengths mismatch")
+    row = [
+        InlineKeyboardButton(
+            f"{REACTION_EMOJIS[i]} {reactions.get(REACTION_NAMES[i], 0)}",
+            callback_data=f"react_{REACTION_NAMES[i]}"
+        )
+        for i in range(len(REACTION_EMOJIS))
+    ]
+    return [row]

@@ -1,30 +1,45 @@
-# --- Основная reply-клавиатура для админа ---
-MAIN_KEYBOARD = [
-    ["Посты", "📝 Пост", "📄 Логи"],
-    ["🛠️ Админ-панель", "📋 Команды"],
-    ["❌ Отмена", "ℹ️ Помощь"]
-]
-
-# Клавиатура для раздела "Посты"
-POSTS_KEYBOARD = [
-    ["Гороскоп", "Карта дня"],
-    ["Вечернее послание", "Доброе утро"],
-    ["Лунный прогноз", "Свободная публикация"],
-    ["⬅️ Назад"]
-]
-from telegram import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
-from config import (
-    BOT_TOKEN,
-    ADMIN_ID,
-    REACTION_EMOJIS,
-    REACTION_NAMES,
-    ZODIAC_SIGNS,
-)
+import logging
+import re
+import sys
 from pathlib import Path
 
+from telegram import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    ReplyKeyboardRemove,
+    Update,
+)
+from telegram.ext import (
+    ApplicationBuilder,
+    CallbackQueryHandler,
+    CommandHandler,
+    ContextTypes,
+    ConversationHandler,
+    MessageHandler,
+    filters,
+)
 
-# --- Константы ---
-CHANNEL_ID = '@eto_vse_ty'  # username канала для публикации
+from config import (
+    ADMIN_ID,
+    BOT_TOKEN,
+    CHANNEL_ID,
+    REACTION_NAMES,
+    validate_config,
+)
+from utils.keyboards import (
+    create_admin_main_keyboard,
+    create_posts_keyboard,
+    create_reaction_buttons,
+    create_zodiac_keyboard,
+)
+
+# --- Логирование ---
+logging.basicConfig(
+    filename='bot.log',
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s %(message)s',
+)
+logger = logging.getLogger(__name__)
 
 # --- Реакции ---
 REACTION_MESSAGES = [
@@ -33,27 +48,19 @@ REACTION_MESSAGES = [
     "Спасибо за эмоции!",
 ]
 
+# --- Фильтр запрещённых слов ---
+FORBIDDEN_WORDS = ['badword1', 'badword2', 'spam']
 
-def get_reaction_keyboard(reactions):
-    if len(REACTION_EMOJIS) != len(REACTION_NAMES):
-        raise ValueError("REACTION_EMOJIS and REACTION_NAMES lengths mismatch")
-    return [[
-        InlineKeyboardButton(
-            f"{REACTION_EMOJIS[i]} {reactions.get(REACTION_NAMES[i], 0)}",
-            callback_data=f"react_{REACTION_NAMES[i]}"
-        )
-        for i in range(len(REACTION_EMOJIS))
-    ]]
+# --- Состояния для ConversationHandler ---
+POST_TEXT, POST_MEDIA = range(2)
 
-ZODIAC_INLINE_KEYBOARD = [
-    [InlineKeyboardButton(f"{emoji} {name}", callback_data=f"zodiac_{name}")] for name, emoji in ZODIAC_SIGNS
-]
 # --- Приветственный баннер ---
 WELCOME_BANNER = (
     "<b>👋 Добро пожаловать!</b>\n"
     "────────────────────────\n"
     "<i>Я помогу опубликовать пост в канал.</i>\n"
 )
+
 # --- Общий красиво оформленный текст команд ---
 COMMANDS_TEXT = (
     "<b>📋 Доступные команды:</b>\n"
@@ -67,33 +74,11 @@ COMMANDS_TEXT = (
     "<b>📊 /stats</b> — статистика (только для администратора)\n"
     "<b>⚙️ /settings</b> — настройки (только для администратора)"
 )
-# --- Импорт необходимых библиотек ---
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    ContextTypes,
-    MessageHandler,
-    filters,
-    ConversationHandler,
-    CallbackQueryHandler,
-)
-import logging
-from datetime import datetime
-from telegram.constants import ChatAction
 
-# --- Логирование ---
-logging.basicConfig(
-    filename='bot.log',
-    level=logging.INFO,
-    format='%(asctime)s %(levelname)s %(message)s'
-)
 
-# --- Фильтр запрещённых слов ---
-FORBIDDEN_WORDS = ['badword1', 'badword2', 'spam']
-
-# --- Состояния для ConversationHandler ---
-POST_TEXT, POST_MEDIA = range(2)
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Глобальный обработчик ошибок"""
+    logger.error("Ошибка при обработке обновления %s", update, exc_info=context.error)
 
 # --- Админ-панель ---
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -185,7 +170,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message:
         return
     if update.effective_user and update.effective_user.id == ADMIN_ID:
-        reply_markup = ReplyKeyboardMarkup(MAIN_KEYBOARD, resize_keyboard=True)
+        reply_markup = create_admin_main_keyboard()
         await update.message.reply_text(
             WELCOME_BANNER + "\n" + COMMANDS_TEXT + "\n\nВы администратор. Используйте кнопки ниже для управления ботом.",
             parse_mode="HTML",
@@ -205,17 +190,17 @@ async def handle_main_keyboard(update: Update, context: ContextTypes.DEFAULT_TYP
     if not hasattr(context, 'user_data') or context.user_data is None:
         context.user_data = {}
     if text == "⬅️ Назад":
-        # Если сейчас показывается клавиатура знаков зодиака — возвращаемся к POSTS_KEYBOARD
+        # Если сейчас показывается клавиатура знаков зодиака — возвращаемся к клавиатуре постов
         if context.user_data.get('zodiac'):
-            reply_markup = ReplyKeyboardMarkup(POSTS_KEYBOARD, resize_keyboard=True)
+            reply_markup = create_posts_keyboard()
             await update.message.reply_text("Выберите тип поста:", reply_markup=reply_markup)
             context.user_data.pop('zodiac', None)
         else:
-            reply_markup = ReplyKeyboardMarkup(MAIN_KEYBOARD, resize_keyboard=True)
+            reply_markup = create_admin_main_keyboard()
             await update.message.reply_text("Главное меню:", reply_markup=reply_markup)
         return
     if text == "Посты":
-        reply_markup = ReplyKeyboardMarkup(POSTS_KEYBOARD, resize_keyboard=True)
+        reply_markup = create_posts_keyboard()
         await update.message.reply_text("Выберите тип поста:", reply_markup=reply_markup)
     elif text == "📝 Пост":
         await post_start(update, context)
@@ -253,7 +238,8 @@ async def handle_main_keyboard(update: Update, context: ContextTypes.DEFAULT_TYP
                 context.user_data['zodiac'] = True
                 context.user_data['reactions'] = {k: 0 for k in REACTION_NAMES}
                 context.user_data['reaction_users'] = {k: set() for k in REACTION_NAMES}
-                keyboard = ZODIAC_INLINE_KEYBOARD + get_reaction_keyboard(context.user_data['reactions'])
+                zodiac_keyboard = create_zodiac_keyboard().inline_keyboard
+                keyboard = zodiac_keyboard + create_reaction_buttons(context.user_data['reactions'])
                 await update.message.reply_photo(
                     img,
                     caption="Вечернее послание. Выберите свой знак зодиака:",
@@ -303,15 +289,12 @@ async def reaction_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception:
                 pass
         # Обновляем клавиатуру с новыми счетчиками
-        keyboard = ZODIAC_INLINE_KEYBOARD + get_reaction_keyboard(context.user_data['reactions'])
+        zodiac_keyboard = create_zodiac_keyboard().inline_keyboard
+        keyboard = zodiac_keyboard + create_reaction_buttons(context.user_data['reactions'])
         try:
             await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
         except Exception:
             pass
-    elif query.data in [f"{emoji} {name}" for name, emoji in ZODIAC_SIGNS]:
-        if update.message:
-            await update.message.reply_text("Здесь будет индивидуальное послание для выбранного знака зодиака!")
-
     # Убираем обработку reply-кнопок для зодиака, теперь только inline-кнопки
 # --- Callback для знаков зодиака (inline) ---
 async def zodiac_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -400,7 +383,6 @@ async def preview_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data.pop('preview', None)
 # --- Обработка reply-кнопки "🛠️ Админ-панель" ---
 async def admin_panel_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    from telegram import ReplyKeyboardRemove
     if update.message and update.message.text == "🛠️ Админ-панель" and update.effective_user and update.effective_user.id == ADMIN_ID:
         # Убираем reply-клавиатуру и показываем inline-админ-панель
         await update.message.reply_text(
@@ -510,13 +492,15 @@ async def post_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --- Запуск бота ---
 if __name__ == '__main__':
-    import sys
-    print(f"Используется Python: {sys.executable}")
-    if not BOT_TOKEN:
-        print("[ОШИБКА] BOT_TOKEN не найден. Проверьте файл .env и переменную BOT_TOKEN.")
-        exit(1)
-    print("Инициализация Telegram-бота...")
+    logger.info("Используется Python: %s", sys.executable)
+    try:
+        validate_config()
+    except ValueError as err:
+        logger.error("%s", err)
+        raise SystemExit(1)
+    logger.info("Инициализация Telegram-бота...")
     app = ApplicationBuilder().token(BOT_TOKEN).connect_timeout(60).read_timeout(60).build()
+    app.add_error_handler(error_handler)
     # Команды
 
     app.add_handler(CommandHandler("start", start))
@@ -537,9 +521,12 @@ if __name__ == '__main__':
     app.add_handler(CallbackQueryHandler(preview_callback, pattern='^(confirm_post|cancel_post)$'))
     app.add_handler(CallbackQueryHandler(zodiac_callback, pattern=r'^zodiac_.*$'))
     app.add_handler(CallbackQueryHandler(reaction_callback, pattern=r'^react_.*$'))
-    # Обрабатываем все кнопки из MAIN_KEYBOARD и POSTS_KEYBOARD
-    all_buttons = [btn for row in MAIN_KEYBOARD for btn in row] + [btn for row in POSTS_KEYBOARD for btn in row]
-    regex_pattern = "^(" + "|".join(map(lambda s: s.replace("(", "\\(").replace(")", "\\)").replace(".", "\\.").replace("+", "\\+").replace("?", "\\?").replace("|", "\\|"), all_buttons)) + ")$"
+    # Обрабатываем все кнопки из reply-клавиатур
+    def _extract_texts(markup):
+        return [button.text for row in markup.keyboard for button in row]
+
+    all_buttons = _extract_texts(create_admin_main_keyboard()) + _extract_texts(create_posts_keyboard())
+    regex_pattern = "^(?:" + "|".join(map(re.escape, all_buttons)) + ")$"
     app.add_handler(MessageHandler(filters.TEXT & filters.Regex(regex_pattern), handle_main_keyboard))
-    print("Бот запущен. Ожидание сообщений... (Ctrl+C для остановки)")
+    logger.info("Бот запущен. Ожидание сообщений...")
     app.run_polling()
