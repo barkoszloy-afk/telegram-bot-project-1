@@ -57,5 +57,8 @@ class ReactionsDB:
         
         return reactions
 
+# Экспорт для совместимости
+Database = ReactionsDB
+
 # Глобальный экземпляр базы данных
 reactions_db = ReactionsDB()
