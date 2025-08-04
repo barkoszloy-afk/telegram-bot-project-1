@@ -316,6 +316,7 @@ def main():
             application.run_webhook(
                 listen="0.0.0.0",
                 port=port,
+                url_path=f"/webhook/{BOT_TOKEN}",
                 webhook_url=webhook_url,
                 drop_pending_updates=True,
             )
