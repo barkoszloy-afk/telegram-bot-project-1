@@ -3,9 +3,38 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes
 from utils.database import reactions_db
+from utils.keyboards import create_main_menu_keyboard
 from config import REACTION_EMOJIS
 
 logger = logging.getLogger(__name__)
+
+async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает главное меню"""
+    query = update.callback_query
+    if not query:
+        return
+
+    try:
+        menu_text = (
+            "🏠 **Главное меню**\n\n"
+            "Выберите интересующую вас категорию:"
+        )
+        
+        await query.edit_message_text(
+            menu_text,
+            parse_mode='Markdown',
+            reply_markup=create_main_menu_keyboard()
+        )
+        
+        await query.answer("🏠 Главное меню")
+        logger.info(f"🏠 Главное меню показано пользователю {query.from_user.id}")
+        
+    except Exception as e:
+        logger.error(f"❌ Ошибка показа главного меню: {e}")
+        try:
+            await query.answer("❌ Произошла ошибка")
+        except Exception:
+            pass
 
 async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик реакций на посты"""
