@@ -54,6 +54,11 @@ def validate_config():
     if not CHANNEL_ID:
         raise ValueError('CHANNEL_ID не найден в переменных окружения')
 
+    if not REACTION_EMOJIS or not REACTION_NAMES:
+        raise ValueError('REACTION_EMOJIS и REACTION_NAMES не должны быть пустыми')
+    if len(REACTION_EMOJIS) != len(REACTION_NAMES):
+        raise ValueError('REACTION_EMOJIS и REACTION_NAMES должны быть одинаковой длины')
+
     masked = f'{BOT_TOKEN[:4]}...{BOT_TOKEN[-4:]}' if BOT_TOKEN else 'N/A'
     logger.info('✅ Конфигурация загружена успешно')
     logger.info('🤖 Токен бота: %s', masked)
