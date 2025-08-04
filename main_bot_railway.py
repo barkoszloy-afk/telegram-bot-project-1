@@ -15,6 +15,25 @@ from config import (
 )
 from utils.keyboards import create_main_menu_keyboard
 
+# Импорты новых обработчиков команд
+from handlers.diagnostics import (
+    ping_command, status_command, uptime_command, 
+    version_command, health_command
+)
+from handlers.stats import (
+    stats_command, users_command, update_stats
+)
+from handlers.user_commands import (
+    about_command, profile_command, feedback_command, settings_command
+)
+from handlers.content_commands import (
+    random_command, popular_command, recent_command,
+    categories_command, search_command
+)
+from handlers.admin_commands import (
+    logs_command, restart_command, broadcast_command, cleanup_command
+)
+
 # Настройка логирования
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -40,6 +59,17 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         user_name = update.effective_user.first_name if update.effective_user else "друг"
         logger.info(f"🌟 Команда /start от пользователя {user_id} ({user_name})")
         
+        # Обновляем статистику
+        try:
+            update_stats(
+                user_id, 
+                update.effective_user.username if update.effective_user else None,
+                update.effective_user.first_name if update.effective_user else None,
+                "start"
+            )
+        except Exception as e:
+            logger.warning(f"Ошибка обновления статистики: {e}")
+        
         if not update.message:
             logger.warning("⚠️ Нет объекта message в update")
             return
@@ -61,6 +91,17 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     try:
         user_id = update.effective_user.id if update.effective_user else "unknown"
         logger.info(f"📚 Команда /help от пользователя {user_id}")
+        
+        # Обновляем статистику
+        try:
+            update_stats(
+                user_id, 
+                update.effective_user.username if update.effective_user else None,
+                update.effective_user.first_name if update.effective_user else None,
+                "help"
+            )
+        except Exception as e:
+            logger.warning(f"Ошибка обновления статистики: {e}")
         
         if not update.message:
             logger.warning("⚠️ Нет объекта message в update для /help")
@@ -194,7 +235,31 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         if data == "main_menu":
             await show_main_menu(update, context)
         
-        # Заглушки для категорий
+        # Реакции на посты
+        elif data.startswith("reaction_"):
+            from handlers.reactions import handle_reaction
+            await handle_reaction(update, context)
+        
+        # Статистика реакций
+        elif data.startswith("stats_"):
+            from handlers.reactions import show_post_reactions
+            await show_post_reactions(update, context)
+        
+        # Случайный пост (новый)
+        elif data == "random_new":
+            from handlers.content_commands import random_command
+            await random_command(update, context)
+        
+        # Показать полный пост
+        elif data.startswith("show_post_"):
+            await query.answer("📖 Открытие поста...", show_alert=True)
+        
+        # Категории контента
+        elif data.startswith("category_"):
+            category = data.split("_", 1)[1]
+            await query.answer(f"📂 Категория: {category}\n🚧 В разработке!", show_alert=True)
+        
+        # Заглушки для категорий (старые)
         elif data.startswith("category_"):
             await query.answer("🚧 В разработке!", show_alert=True)
         
@@ -282,10 +347,39 @@ async def setup_bot_commands(application: Application) -> None:
         
         from telegram import BotCommand
         commands = [
+            # Основные команды
             BotCommand("start", "Главное меню с категориями"),
             BotCommand("help", "Справка по использованию бота"),
             BotCommand("instructions", "Подробные инструкции"),
-            BotCommand("test", "Тест работы бота")
+            BotCommand("test", "Тест работы бота"),
+            
+            # Диагностические команды
+            BotCommand("ping", "Проверка отклика бота"),
+            BotCommand("uptime", "Время работы бота"),
+            BotCommand("version", "Версия бота"),
+            
+            # Пользовательские команды
+            BotCommand("about", "О боте"),
+            BotCommand("profile", "Ваш профиль"),
+            BotCommand("feedback", "Обратная связь"),
+            BotCommand("settings", "Настройки"),
+            
+            # Контентные команды
+            BotCommand("random", "Случайный пост"),
+            BotCommand("popular", "Популярные посты"),
+            BotCommand("recent", "Последние посты"),
+            BotCommand("categories", "Категории"),
+            BotCommand("search", "Поиск по контенту"),
+            
+            # Административные команды (будут видны только админу в меню)
+            BotCommand("status", "Статус системы"),
+            BotCommand("stats", "Статистика"),
+            BotCommand("users", "Пользователи"),
+            BotCommand("logs", "Логи"),
+            BotCommand("health", "Проверка системы"),
+            BotCommand("restart", "Перезапуск"),
+            BotCommand("broadcast", "Рассылка"),
+            BotCommand("cleanup", "Очистка")
         ]
         
         await application.bot.set_my_commands(commands)
@@ -329,10 +423,43 @@ def main():
         )
         
         # Регистрация обработчиков
+        # Основные команды
         application.add_handler(CommandHandler("start", start_command))
         application.add_handler(CommandHandler("help", help_command))
         application.add_handler(CommandHandler("instructions", instructions_command))
         application.add_handler(CommandHandler("test", test_command))
+        
+        # Диагностические команды
+        application.add_handler(CommandHandler("ping", ping_command))
+        application.add_handler(CommandHandler("status", status_command))
+        application.add_handler(CommandHandler("uptime", uptime_command))
+        application.add_handler(CommandHandler("version", version_command))
+        application.add_handler(CommandHandler("health", health_command))
+        
+        # Статистика
+        application.add_handler(CommandHandler("stats", stats_command))
+        application.add_handler(CommandHandler("users", users_command))
+        
+        # Пользовательские команды
+        application.add_handler(CommandHandler("about", about_command))
+        application.add_handler(CommandHandler("profile", profile_command))
+        application.add_handler(CommandHandler("feedback", feedback_command))
+        application.add_handler(CommandHandler("settings", settings_command))
+        
+        # Контентные команды
+        application.add_handler(CommandHandler("random", random_command))
+        application.add_handler(CommandHandler("popular", popular_command))
+        application.add_handler(CommandHandler("recent", recent_command))
+        application.add_handler(CommandHandler("categories", categories_command))
+        application.add_handler(CommandHandler("search", search_command))
+        
+        # Административные команды
+        application.add_handler(CommandHandler("logs", logs_command))
+        application.add_handler(CommandHandler("restart", restart_command))
+        application.add_handler(CommandHandler("broadcast", broadcast_command))
+        application.add_handler(CommandHandler("cleanup", cleanup_command))
+        
+        # Обработчики callback и ошибок
         application.add_handler(CallbackQueryHandler(handle_callback_query))
         application.add_error_handler(error_handler)
         
