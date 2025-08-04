@@ -9,11 +9,11 @@ logger = logging.getLogger(__name__)
 
 async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик реакций на посты"""
+    query = update.callback_query
+    if not query or not query.data:
+        return
+
     try:
-        query = update.callback_query
-        if not query or not query.data:
-            return
-        
         # Парсим данные callback
         if not query.data.startswith("reaction_"):
             return
@@ -42,16 +42,16 @@ async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         logger.error(f"❌ Ошибка обработки реакции: {e}")
         try:
             await query.answer("❌ Произошла ошибка")
-        except:
+        except Exception:
             pass
 
 async def show_post_reactions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает статистику реакций на пост"""
+    query = update.callback_query
+    if not query or not query.data:
+        return
+
     try:
-        query = update.callback_query
-        if not query or not query.data:
-            return
-        
         if not query.data.startswith("stats_"):
             return
         
@@ -73,5 +73,5 @@ async def show_post_reactions(update: Update, context: ContextTypes.DEFAULT_TYPE
         logger.error(f"❌ Ошибка показа статистики: {e}")
         try:
             await query.answer("❌ Произошла ошибка")
-        except:
+        except Exception:
             pass

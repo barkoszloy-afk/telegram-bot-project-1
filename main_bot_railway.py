@@ -1,17 +1,16 @@
 # main_bot_railway.py - Минимальная версия с базовым меню
 import logging
-import asyncio
 import os
-from typing import Dict, Any, Optional
+from typing import Optional
 from telegram import Update
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, 
-    MessageHandler, filters, ContextTypes
+    ContextTypes
 )
 
 # Импорты из наших модулей
 from config import (
-    BOT_TOKEN, ADMIN_ID, validate_config,
+    BOT_TOKEN, validate_config,
     CONNECT_TIMEOUT, READ_TIMEOUT, WRITE_TIMEOUT, POOL_TIMEOUT
 )
 from utils.keyboards import create_main_menu_keyboard
