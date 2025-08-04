@@ -102,6 +102,10 @@ class TelegramBot:
             if not user or not update.message:
                 return
                 
+            # Update user stats
+            from handlers.stats import update_stats
+            update_stats(user.id, user.username, user.first_name, "start")
+                
             welcome_text = (
                 f"👋 Привет, {user.first_name}!\n\n"
                 f"🤖 Добро пожаловать в Telegram Bot Project!\n\n"
@@ -137,6 +141,11 @@ class TelegramBot:
             if not update.message:
                 return
                 
+            user = update.effective_user
+            if user:
+                from handlers.stats import update_stats
+                update_stats(user.id, user.username, user.first_name, "help")
+                
             help_text = (
                 "📋 **Справка по командам**\n\n"
                 "**🔧 Основные команды:**\n"
@@ -162,7 +171,6 @@ class TelegramBot:
             )
             
             # Add admin commands if user is admin
-            user = update.effective_user
             if user and user.id == ADMIN_ID:
                 help_text += (
                     "**👑 Команды администратора:**\n"
@@ -170,7 +178,9 @@ class TelegramBot:
                     "/stats - Статистика бота\n"
                     "/logs - Просмотр логов\n"
                     "/broadcast - Рассылка\n"
-                    "/users - Список пользователей\n\n"
+                    "/users - Список пользователей\n"
+                    "/cleanup - Очистка системы\n"
+                    "/restart - Перезапуск бота\n\n"
                 )
             
             help_text += "ℹ️ Для получения подробной информации о команде используйте её"
@@ -194,13 +204,17 @@ class TelegramBot:
             if not update.message:
                 return
                 
+            user = update.effective_user
+            if user:
+                from handlers.stats import update_stats
+                update_stats(user.id, user.username, user.first_name, "menu")
+                
             await update.message.reply_text(
                 "🏠 **Главное меню**\n\nВыберите категорию:",
                 parse_mode='Markdown',
                 reply_markup=create_main_menu_keyboard()
             )
             
-            user = update.effective_user
             logger.info(f"✅ Menu command executed by user {user.id if user else 'Unknown'}")
             
         except Exception as e:
@@ -315,6 +329,23 @@ class TelegramBot:
             logger.error(f"❌ Error setting up handlers: {e}")
             raise
     
+    def setup_webhook(self, webhook_url: str, port: int):
+        """Setup webhook for production deployment"""
+        try:
+            logger.info(f"🌐 Setting up webhook: {webhook_url}")
+            
+            # Set webhook
+            self.app.run_webhook(
+                listen="0.0.0.0",
+                port=port,
+                webhook_url=webhook_url,
+                url_path=BOT_TOKEN
+            )
+            
+        except Exception as e:
+            logger.error(f"❌ Webhook setup failed: {e}")
+            raise
+    
     def run(self):
         """Start the bot"""
         try:
@@ -339,9 +370,19 @@ class TelegramBot:
             logger.info(f"🐍 Python: {sys.version}")
             logger.info(f"📁 Working Directory: {os.getcwd()}")
             
-            # Start polling
-            print("🤖 Bot is running... Press Ctrl+C to stop.")
-            self.app.run_polling(allowed_updates=Update.ALL_TYPES)
+            # Check for webhook environment
+            webhook_url = os.getenv('WEBHOOK_URL')
+            port = int(os.getenv('PORT', 8000))
+            
+            if webhook_url:
+                # Production webhook mode
+                logger.info(f"🌐 Starting in webhook mode on port {port}")
+                self.setup_webhook(webhook_url, port)
+            else:
+                # Development polling mode
+                logger.info("🔄 Starting in polling mode")
+                print("🤖 Bot is running... Press Ctrl+C to stop.")
+                self.app.run_polling(allowed_updates=Update.ALL_TYPES)
             
         except KeyboardInterrupt:
             logger.info("🛑 Bot stopped by user")
