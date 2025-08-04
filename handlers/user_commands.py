@@ -83,7 +83,7 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             f"**Основная информация:**\n"
             f"• ID: `{user_id}`\n"
             f"• Имя: {first_name} {last_name}".strip() + "\n"
-            f"• Username: @{username}\n"
+            f"• Username: {username if username != 'Не указан' else 'Не указан'}\n"
             f"• Язык: {language_code}\n\n"
             f"**Статистика использования:**\n"
             f"• Первое посещение: {first_seen}\n"
