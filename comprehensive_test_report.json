@@ -1,11 +1,11 @@
 {
-  "timestamp": "2025-08-04T15:06:20.725949",
+  "timestamp": "2025-08-04T15:08:04.435952",
   "summary": {
     "total_tests": 35,
     "passed_tests": 33,
     "failed_tests": 2,
     "success_rate": 0.9428571428571428,
-    "duration_seconds": 0.9169211387634277,
+    "duration_seconds": 0.9188973903656006,
     "status": "🎉 ОТЛИЧНО"
   },
   "results": {
@@ -35,7 +35,7 @@
     "code_quality": {
       "syntax_errors": [],
       "flake8_passed": false,
-      "files_checked": 56
+      "files_checked": 57
     },
     "security": {
       "hardcoded_secrets": [
@@ -58,7 +58,7 @@
     },
     "performance": {
       "memory_usage_mb": 0.0,
-      "import_time_sec": 2.6226043701171875e-06,
+      "import_time_sec": 2.1457672119140625e-06,
       "memory_efficient": true,
       "import_fast": true
     },
