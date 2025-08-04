@@ -8,9 +8,6 @@ from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, 
     MessageHandler, filters, ContextTypes
 )
-from flask import Flask, request, jsonify, Response
-from flask.typing import ResponseReturnValue
-import threading
 
 # Импорты из наших модулей
 from config import (
@@ -31,121 +28,9 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Flask app для healthcheck
-app = Flask(__name__)
-
-@app.route('/health')
-def health_check() -> ResponseReturnValue:
-    """Healthcheck endpoint для Railway"""
-    import time
-    global application, start_time
-    
-    # Проверяем состояние бота
-    bot_status = "unknown"
-    if application:
-        try:
-            bot_status = "running" if application.running else "stopped"
-        except:
-            bot_status = "error"
-    
-    # Считаем uptime
-    uptime: float = 0.0
-    if start_time:
-        uptime = time.time() - start_time
-    
-    return jsonify({
-        "status": "healthy",
-        "bot": bot_status,
-        "timestamp": str(time.time()),
-        "uptime_seconds": round(uptime, 2)
-    }), 200
-
-@app.route('/')
-def index() -> ResponseReturnValue:
-    """Главная страница"""
-    return jsonify({
-        "message": "Telegram Bot is running on Railway",
-        "status": "active"
-    }), 200
-
-@app.route('/logs')
-def get_logs() -> ResponseReturnValue:
-    """Показать последние записи из лога"""
-    try:
-        import os
-        log_file = 'bot.log'
-        if os.path.exists(log_file):
-            with open(log_file, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-                # Берем последние 50 строк
-                last_lines = lines[-50:] if len(lines) > 50 else lines
-                return jsonify({
-                    "logs": last_lines,
-                    "total_lines": len(lines),
-                    "showing_last": len(last_lines)
-                }), 200
-        else:
-            return jsonify({
-                "error": "Log file not found",
-                "logs": []
-            }), 404
-    except Exception as e:
-        return jsonify({
-            "error": f"Error reading logs: {str(e)}",
-            "logs": []
-        }), 500
-
 # Глобальные переменные
 application: Optional[Application] = None
 start_time: Optional[float] = None
-
-def setup_webhook_route() -> None:
-    """Настройка webhook route после импорта конфигурации"""
-    @app.route(f'/webhook/{BOT_TOKEN}', methods=['POST'])
-    def webhook() -> ResponseReturnValue:
-        """Обработчик webhook запросов от Telegram"""
-        try:
-            # Получаем JSON данные от Telegram
-            json_data = request.get_json()
-            if not json_data:
-                logger.warning("⚠️ Webhook получил пустые данные")
-                return "No data", 400
-            
-            # Создаем Update объект из JSON данных  
-            if application and application.bot:
-                update = Update.de_json(json_data, application.bot)
-                if update:
-                    # Простая синхронная обработка
-                    import threading
-                    import asyncio
-                    
-                    def run_async_update() -> None:
-                        try:
-                            # Используем asyncio.run() вместо создания loop вручную
-                            if application:
-                                logger.info(f"🔄 Начинаем обработку update")
-                                asyncio.run(application.process_update(update))
-                                logger.info(f"✅ Webhook обработал update")
-                            else:
-                                logger.error("❌ Application отсутствует при обработке")
-                            
-                        except Exception as e:
-                            logger.error(f"❌ Ошибка async обработки: {e}")
-                            import traceback
-                            logger.error(f"📋 Полный traceback: {traceback.format_exc()}")
-                    
-                    # Запускаем в отдельном потоке
-                    thread = threading.Thread(target=run_async_update, daemon=True)
-                    thread.start()
-                else:
-                    logger.warning("⚠️ Не удалось создать Update объект")
-            else:
-                logger.error("❌ Application или bot не инициализированы")
-            
-            return "OK", 200
-        except Exception as e:
-            logger.error(f"❌ Ошибка обработки webhook: {e}")
-            return "Error", 500
 
 # ================== КОМАНДЫ БОТА ==================
 
@@ -364,104 +249,9 @@ async def setup_bot_commands(application: Application) -> None:
         import traceback
         logger.error(f"📋 Полный traceback: {traceback.format_exc()}")
 
-def run_flask():
-    """Запуск Flask сервера в отдельном потоке"""
-    port = int(os.environ.get('PORT', 8000))
-    app.run(host='0.0.0.0', port=port, debug=False)
-
-async def setup_webhook():
-    """Настройка webhook для Railway"""
-    global application
-    
-    # Проверка токена
-    if not BOT_TOKEN:
-        raise ValueError("BOT_TOKEN не найден в переменных окружения")
-    
-    # Создание приложения с таймаутами для Railway
-    application = (
-        Application.builder()
-        .token(BOT_TOKEN)
-        .connect_timeout(CONNECT_TIMEOUT)
-        .read_timeout(READ_TIMEOUT)
-        .write_timeout(WRITE_TIMEOUT)
-        .pool_timeout(POOL_TIMEOUT)
-        .build()
-    )
-    
-    # Регистрация обработчиков команд
-    application.add_handler(CommandHandler("start", start_command))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("instructions", instructions_command))
-    
-    # Регистрация обработчика callback-запросов
-    application.add_handler(CallbackQueryHandler(handle_callback_query))
-    
-    # Регистрация обработчика ошибок
-    application.add_error_handler(error_handler)
-    
-    # Инициализация приложения
-    await application.initialize()
-    
-    # Установка команд бота в меню Telegram
-    await setup_bot_commands(application)
-    
-    # Получение Railway URL для webhook
-    webhook_url = None
-    
-    # Вариант 1: Переменная WEBHOOK_URL (устанавливается вручную)
-    manual_webhook = os.environ.get('WEBHOOK_URL')
-    if manual_webhook:
-        if not manual_webhook.startswith('https://'):
-            manual_webhook = f"https://{manual_webhook}"
-        webhook_url = f"{manual_webhook}/webhook/{BOT_TOKEN}"
-        
-    # Вариант 2: RAILWAY_PUBLIC_DOMAIN (автоматически от Railway)
-    elif os.environ.get('RAILWAY_PUBLIC_DOMAIN'):
-        railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
-        webhook_url = f"https://{railway_domain}/webhook/{BOT_TOKEN}"
-        
-    # Вариант 3: Fallback домен
-    if not webhook_url:
-        fallback_domain = "telegram-bot-project-1-production.up.railway.app"
-        webhook_url = f"https://{fallback_domain}/webhook/{BOT_TOKEN}"
-        logger.info(f"🔄 Используем fallback домен: {fallback_domain}")
-    
-    # Railway окружение
-    is_railway_env = (
-        os.environ.get('RAILWAY_PROJECT_ID') is not None or
-        os.environ.get('PORT') is not None
-    )
-    
-    if webhook_url:
-        await application.bot.set_webhook(webhook_url)
-        logger.info(f"🌐 Webhook установлен: {webhook_url}")
-    elif is_railway_env:
-        await application.bot.delete_webhook()
-        logger.info("⚠️ Webhook очищен - добавьте WEBHOOK_URL переменную!")
-    else:
-        logger.info("🏠 Локальный режим - polling")
-        return False
-        
-    # Для webhook режима просто инициализируем приложение
-    await application.start()
-    logger.info("✅ Приложение запущено в webhook режиме")
-    return True
-
-async def run_webhook_mode():
-    """Запуск в режиме webhook для Railway"""
-    await setup_webhook()
-    # Поддержание приложения активным для webhook
-    try:
-        while True:
-            await asyncio.sleep(1)
-    except KeyboardInterrupt:
-        logger.info("🛑 Получен сигнал остановки")
-        if application:
-            await application.stop()
-
 def main():
     """Главная функция"""
-    global start_time
+    global start_time, application
     import time
     
     # Устанавливаем время запуска
@@ -472,8 +262,26 @@ def main():
         validate_config()
         logger.info("✅ Конфигурация успешно загружена")
         
-        # Настройка webhook route после загрузки конфигурации
-        setup_webhook_route()
+        if not BOT_TOKEN:
+            raise ValueError("BOT_TOKEN не найден в переменных окружения")
+        
+        # Создание приложения
+        application = (
+            Application.builder()
+            .token(BOT_TOKEN)
+            .connect_timeout(CONNECT_TIMEOUT)
+            .read_timeout(READ_TIMEOUT) 
+            .write_timeout(WRITE_TIMEOUT)
+            .pool_timeout(POOL_TIMEOUT)
+            .build()
+        )
+        
+        # Регистрация обработчиков
+        application.add_handler(CommandHandler("start", start_command))
+        application.add_handler(CommandHandler("help", help_command))
+        application.add_handler(CommandHandler("instructions", instructions_command))
+        application.add_handler(CallbackQueryHandler(handle_callback_query))
+        application.add_error_handler(error_handler)
         
         # Проверка Railway окружения
         is_railway = (
@@ -484,15 +292,34 @@ def main():
         )
         
         if is_railway:
-            logger.info("🚀 Запуск в Railway режиме")
+            logger.info("🚀 Запуск в Railway режиме с webhook")
             
-            # Запуск Flask сервера в отдельном потоке
-            flask_thread = threading.Thread(target=run_flask, daemon=True)
-            flask_thread.start()
-            logger.info("🌐 Flask сервер запущен")
+            # Получаем домен из переменных окружения Railway или используем fallback
+            railway_domain = (
+                os.environ.get('RAILWAY_PUBLIC_DOMAIN') or 
+                os.environ.get('RAILWAY_STATIC_URL') or
+                "telegram-bot-project-1-production.up.railway.app"  # fallback домен
+            )
             
-            # Настройка webhook и поддержание активности
-            asyncio.run(run_webhook_mode())
+            webhook_url = f"https://{railway_domain}/webhook/{BOT_TOKEN}"
+            port = int(os.environ.get("PORT", 8443))
+            
+            logger.info(f"🌐 Webhook URL: {webhook_url}")
+            logger.info(f"🔌 Listening on port: {port}")
+            
+            # Устанавливаем команды перед запуском webhook
+            async def post_init(application: Application) -> None:
+                await setup_bot_commands(application)
+            
+            application.post_init = post_init
+            
+            # Запуск webhook с встроенным сервером
+            application.run_webhook(
+                listen="0.0.0.0",
+                port=port,
+                webhook_url=webhook_url,
+                drop_pending_updates=True,
+            )
         else:
             logger.info("🏠 Запуск в локальном режиме")
             run_local_polling()
