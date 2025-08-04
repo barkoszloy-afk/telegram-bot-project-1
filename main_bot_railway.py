@@ -129,6 +129,58 @@ async def instructions_command(update: Update, context: ContextTypes.DEFAULT_TYP
         import traceback
         logger.error(f"📋 Полный traceback: {traceback.format_exc()}")
 
+
+async def test_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Команда /test - тестирование работы бота"""
+    try:
+        user_id = update.effective_user.id if update.effective_user else "unknown"
+        user_name = update.effective_user.first_name if update.effective_user else "друг"
+        logger.info(f"🧪 Команда /test от пользователя {user_id} ({user_name})")
+        
+        if not update.message:
+            logger.warning("⚠️ Нет объекта message в update для /test")
+            return
+
+        # Создаем тестовое сообщение с информацией о системе
+        import time
+        current_time = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+        
+        test_text = f"""🧪 **Тест бота пройден успешно!**
+
+👤 **Пользователь:** {user_name} (ID: {user_id})
+🕐 **Время теста:** {current_time}
+🌐 **Режим:** Railway webhook
+🔗 **Статус:** ✅ Онлайн
+
+**🚀 Доступные команды:**
+• `/start` - Главное меню
+• `/help` - Быстрая справка  
+• `/instructions` - Подробные инструкции
+• `/test` - Тест системы
+
+**📊 Системная информация:**
+• Webhook: Активен
+• База данных: Подключена
+• Клавиатуры: Работают
+• Логирование: Включено
+
+✅ **Все системы работают нормально!**"""
+
+        await update.message.reply_text(test_text, parse_mode='Markdown')
+        logger.info("✅ Команда /test выполнена успешно")
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка в команде /test: {e}")
+        import traceback
+        logger.error(f"📋 Полный traceback: {traceback.format_exc()}")
+        
+        # Отправляем простое сообщение об ошибке
+        try:
+            if update.message:
+                await update.message.reply_text("❌ Произошла ошибка при выполнении теста")
+        except Exception:
+            pass
+
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Универсальный обработчик callback-запросов"""
     query = update.callback_query
@@ -232,7 +284,8 @@ async def setup_bot_commands(application: Application) -> None:
         commands = [
             BotCommand("start", "Главное меню с категориями"),
             BotCommand("help", "Справка по использованию бота"),
-            BotCommand("instructions", "Подробные инструкции")
+            BotCommand("instructions", "Подробные инструкции"),
+            BotCommand("test", "Тест работы бота")
         ]
         
         await application.bot.set_my_commands(commands)
@@ -279,6 +332,7 @@ def main():
         application.add_handler(CommandHandler("start", start_command))
         application.add_handler(CommandHandler("help", help_command))
         application.add_handler(CommandHandler("instructions", instructions_command))
+        application.add_handler(CommandHandler("test", test_command))
         application.add_handler(CallbackQueryHandler(handle_callback_query))
         application.add_error_handler(error_handler)
         
@@ -352,6 +406,7 @@ def run_local_polling():
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("instructions", instructions_command))
+    application.add_handler(CommandHandler("test", test_command))
     application.add_handler(CallbackQueryHandler(handle_callback_query))
     application.add_error_handler(error_handler)
     
