@@ -301,10 +301,12 @@ def main():
             )
             
             webhook_url = f"https://{railway_domain}/webhook/{BOT_TOKEN}"
+            webhook_path = f"/webhook/{BOT_TOKEN}"
             port = int(os.environ.get("PORT", 8443))
             
             logger.info(f"🌐 Webhook URL: {webhook_url}")
-            logger.info(f"🔌 Listening on port: {port}")
+            logger.info(f"�️ Webhook path: {webhook_path}")
+            logger.info(f"�🔌 Listening on port: {port}")
             
             # Устанавливаем команды перед запуском webhook
             async def post_init(application: Application) -> None:
@@ -316,6 +318,7 @@ def main():
             application.run_webhook(
                 listen="0.0.0.0",
                 port=port,
+                url_path=webhook_path,
                 webhook_url=webhook_url,
                 drop_pending_updates=True,
             )
