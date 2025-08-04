@@ -13,30 +13,37 @@ POSTS_KEYBOARD = [
     ["⬅️ Назад"]
 ]
 from telegram import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from config import (
+    BOT_TOKEN,
+    ADMIN_ID,
+    REACTION_EMOJIS,
+    REACTION_NAMES,
+    ZODIAC_SIGNS,
+)
+from pathlib import Path
 
-# Клавиатура для 12 знаков зодиака
-ZODIAC_SIGNS = [
-    ("Овен", "🐏"), ("Телец", "🐂"), ("Близнецы", "👯‍♂️"), ("Рак", "🦀"),
-    ("Лев", "🦁"), ("Дева", "👸"), ("Весы", "⚖️"), ("Скорпион", "🦂"),
-    ("Стрелец", "🏹"), ("Козерог", "🐐"), ("Водолей", "🌊"), ("Рыбы", "🐟")
-]
 
+# --- Константы ---
+CHANNEL_ID = '@eto_vse_ty'  # username канала для публикации
 
 # --- Реакции ---
-REACTION_EMOJIS = ["❤️", "🙏", "🥹"]
-REACTION_NAMES = ["heart", "pray", "touched"]
 REACTION_MESSAGES = [
     "Спасибо за сердечко!",
     "Спасибо за поддержку!",
-    "Спасибо за эмоции!"
+    "Спасибо за эмоции!",
 ]
+
+
 def get_reaction_keyboard(reactions):
-    return [
-        [
-            InlineKeyboardButton(f"{REACTION_EMOJIS[i]} {reactions.get(REACTION_NAMES[i], 0)}", callback_data=f"react_{REACTION_NAMES[i]}")
-            for i in range(3)
-        ]
-    ]
+    if len(REACTION_EMOJIS) != len(REACTION_NAMES):
+        raise ValueError("REACTION_EMOJIS and REACTION_NAMES lengths mismatch")
+    return [[
+        InlineKeyboardButton(
+            f"{REACTION_EMOJIS[i]} {reactions.get(REACTION_NAMES[i], 0)}",
+            callback_data=f"react_{REACTION_NAMES[i]}"
+        )
+        for i in range(len(REACTION_EMOJIS))
+    ]]
 
 ZODIAC_INLINE_KEYBOARD = [
     [InlineKeyboardButton(f"{emoji} {name}", callback_data=f"zodiac_{name}")] for name, emoji in ZODIAC_SIGNS
@@ -61,19 +68,19 @@ COMMANDS_TEXT = (
     "<b>⚙️ /settings</b> — настройки (только для администратора)"
 )
 # --- Импорт необходимых библиотек ---
-from dotenv import load_dotenv
-import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters, ConversationHandler, CallbackQueryHandler
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    ContextTypes,
+    MessageHandler,
+    filters,
+    ConversationHandler,
+    CallbackQueryHandler,
+)
 import logging
 from datetime import datetime
 from telegram.constants import ChatAction
-
-# --- Загрузка переменных окружения из .env ---
-load_dotenv()
-BOT_TOKEN = os.getenv('BOT_TOKEN')  # Токен бота берётся из .env
-ADMIN_ID = 345470935  # ID администратора
-CHANNEL_ID = '@eto_vse_ty'  # username канала для публикации
 
 # --- Логирование ---
 logging.basicConfig(
@@ -232,20 +239,20 @@ async def handle_main_keyboard(update: Update, context: ContextTypes.DEFAULT_TYP
     elif text == "ℹ️ Помощь":
         await help_command(update, context)
     elif text == "Вечернее послание":
-        image_path = os.path.expanduser("~/Desktop/images/Послание1 августа.jpg")
+        image_path = Path(__file__).parent / "images" / "poslanie1.jpg"
+        if not image_path.exists():
+            await update.message.reply_text("Изображение для послания не найдено.")
+            return
         try:
-            with open(image_path, "rb") as img:
+            with image_path.open("rb") as img:
                 context.user_data['preview'] = {
                     'type': 'photo',
-                    'file': image_path,
-                    'caption': "Вечернее послание. Выберите свой знак зодиака:"
+                    'file': str(image_path),
+                    'caption': "Вечернее послание. Выберите свой знак зодиака:",
                 }
                 context.user_data['zodiac'] = True
-                # Инициализация счетчиков реакций
                 context.user_data['reactions'] = {k: 0 for k in REACTION_NAMES}
-                # Инициализация пользователей, проголосовавших за каждую реакцию
                 context.user_data['reaction_users'] = {k: set() for k in REACTION_NAMES}
-                # Клавиатура: зодиак + реакции
                 keyboard = ZODIAC_INLINE_KEYBOARD + get_reaction_keyboard(context.user_data['reactions'])
                 await update.message.reply_photo(
                     img,
@@ -253,8 +260,7 @@ async def handle_main_keyboard(update: Update, context: ContextTypes.DEFAULT_TYP
                     reply_markup=InlineKeyboardMarkup(keyboard)
                 )
         except Exception:
-            if update.message:
-                await update.message.reply_text("Не удалось найти или отправить изображение.")
+            await update.message.reply_text("Не удалось отправить изображение.")
 # --- Callback для реакций ---
 async def reaction_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -491,6 +497,16 @@ async def post_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
     if update.message.video:
         file_id = update.message.video.file_id
+        caption = update.message.caption or ""
+        if contains_forbidden(caption):
+            await update.message.reply_text("В подписи обнаружены запрещённые слова. Публикация отклонена.")
+            logging.info(f"Отклонено видео с запрещёнными словами: {caption}")
+            return ConversationHandler.END
+        await context.bot.send_video(chat_id=CHANNEL_ID, video=file_id, caption=caption)
+        await update.message.reply_text("Видео опубликовано в канал!")
+        logging.info(f"Опубликовано видео: {caption}")
+        return ConversationHandler.END
+    return ConversationHandler.END
 
 # --- Запуск бота ---
 if __name__ == '__main__':
