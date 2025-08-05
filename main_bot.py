@@ -247,6 +247,21 @@ async def handle_main_keyboard(update: Update, context: ContextTypes.DEFAULT_TYP
                 )
         except Exception:
             await update.message.reply_text("Не удалось отправить изображение.")
+    elif text in ["Гороскоп", "Карта дня", "Доброе утро", "Лунный прогноз", "Свободная публикация"]:
+        if not hasattr(context, 'user_data') or context.user_data is None:
+            context.user_data = {}
+        context.user_data['preview'] = {
+            'type': 'text',
+            'text': f"{text}: пример содержимого поста"
+        }
+        keyboard = [
+            [InlineKeyboardButton("✅ Опубликовать", callback_data='confirm_post')],
+            [InlineKeyboardButton("✏️ Отменить/Изменить", callback_data='cancel_post')]
+        ]
+        await update.message.reply_text(
+            f"Предпросмотр поста: {text}\n\nпример содержимого поста",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
 # --- Callback для реакций ---
 async def reaction_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -337,20 +352,6 @@ async def zodiac_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 caption=f"Послание для знака: {zodiac_name}",
                 reply_markup=None
             )
-    elif update.message and hasattr(update.message, 'text') and update.message.text in ["Гороскоп", "Карта дня", "Доброе утро", "Лунный прогноз", "Свободная публикация"]:
-        text = update.message.text
-        # Гарантируем, что context.user_data — dict
-        if not hasattr(context, 'user_data') or context.user_data is None:
-            context.user_data = {}
-        context.user_data['preview'] = {
-            'type': 'text',
-            'text': f"{text}: пример содержимого поста"
-        }
-        keyboard = [
-            [InlineKeyboardButton("✅ Опубликовать", callback_data='confirm_post')],
-            [InlineKeyboardButton("✏️ Отменить/Изменить", callback_data='cancel_post')]
-        ]
-        await update.message.reply_text(f"Предпросмотр поста: {text}\n\nпример содержимого поста", reply_markup=InlineKeyboardMarkup(keyboard))
 # --- Callback для подтверждения/отмены предпросмотра поста ---
 async def preview_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
