@@ -301,7 +301,7 @@ async def process_gpt_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 else:
                     await update.message.reply_text(response, parse_mode='Markdown')
             else:
-                await update.message.reply_text(result["response"])
+                await update.message.reply_text(str(result["response"]))
             
             return True
             
