@@ -6,7 +6,7 @@ openai>=1.0.0
 # Development and testing dependencies (optional, installed in CI)
 pytest>=7.0.0
 pytest-cov>=4.0.0
-pytest-asyncio>=0.21.0
+pytest-asyncio>=0.21.0  # required for running async tests
 # pytest-benchmark>=4.0.0
 # black>=23.0.0
 # isort>=5.12.0
