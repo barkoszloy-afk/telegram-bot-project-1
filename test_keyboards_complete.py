@@ -15,7 +15,7 @@ class TestKeyboards(unittest.TestCase):
 
     def test_create_main_menu_keyboard(self):
         """Тест главного меню"""
-        keyboard = create_main_menu_keyboard()
+        keyboard = create_main_menu_keyboard(set())
         self.assertIsInstance(keyboard, InlineKeyboardMarkup)
         self.assertEqual(len(keyboard.inline_keyboard), 3)
         self.assertEqual(len(keyboard.inline_keyboard[0]), 2)

@@ -257,11 +257,26 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         elif data == "random_new":
             from handlers.content_commands import random_command
             await random_command(update, context)
-        
+
         # Показать полный пост
         elif data.startswith("show_post_"):
             await query.answer("📖 Открытие поста...", show_alert=True)
-        
+
+        # Подписка на категорию
+        elif data.startswith("subscribe_"):
+            category = data.split("_", 1)[1]
+            subscriptions = context.user_data.setdefault("subscriptions", set())
+            subscriptions.add(category)
+            await query.answer("✅ Подписка оформлена")
+
+        # Отписка от категории
+        elif data.startswith("unsubscribe_"):
+            category = data.split("_", 1)[1]
+            subscriptions = context.user_data.get("subscriptions", set())
+            subscriptions.discard(category)
+            context.user_data["subscriptions"] = subscriptions
+            await query.answer("❌ Подписка отменена")
+
         # Категории контента
         elif data.startswith("category_"):
             category = data.split("_", 1)[1]
@@ -650,7 +665,8 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 """
         
         logger.info("⌨️ Создаем клавиатуру...")
-        keyboard = create_main_menu_keyboard()
+        subscriptions = context.user_data.get("subscriptions", set())
+        keyboard = create_main_menu_keyboard(subscriptions)
         logger.info(f"✅ Клавиатура создана: {len(keyboard.inline_keyboard)} рядов")
         
         # Отображаем или редактируем главное меню
