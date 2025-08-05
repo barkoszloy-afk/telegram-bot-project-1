@@ -31,10 +31,15 @@ REACTION_MESSAGES = [
     "Спасибо за эмоции!"
 ]
 def get_reaction_keyboard(reactions):
+    if len(REACTION_EMOJIS) != len(REACTION_NAMES):
+        raise ValueError("REACTION_EMOJIS and REACTION_NAMES must be of equal length")
     return [
         [
-            InlineKeyboardButton(f"{REACTION_EMOJIS[i]} {reactions.get(REACTION_NAMES[i], 0)}", callback_data=f"react_{REACTION_NAMES[i]}")
-            for i in range(3)
+            InlineKeyboardButton(
+                f"{REACTION_EMOJIS[i]} {reactions.get(REACTION_NAMES[i], 0)}",
+                callback_data=f"react_{REACTION_NAMES[i]}"
+            )
+            for i in range(len(REACTION_EMOJIS))
         ]
     ]
 
