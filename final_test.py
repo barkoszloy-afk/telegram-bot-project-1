@@ -1,109 +1,46 @@
-# final_test.py - Финальный тест всей системы
+"""High level integration tests for the project.
+
+The previous version of this file attempted to communicate with the
+real Telegram API which makes automated testing unreliable.  The test
+interacting with Telegram is now skipped by default while still
+illustrating how such a check could be performed.  We also keep a simple
+module import test to ensure that key parts of the project are
+importable.
+"""
+
 import asyncio
-import sys
-from telegram import Bot
+import importlib
 
-async def test_bot_functionality():
-    """Тестируем функциональность бота"""
-    try:
-        from config import BOT_TOKEN, validate_config
-        
-        # Валидация конфигурации
-        print("🔍 Проверяем конфигурацию...")
-        validate_config()
+import pytest
 
-        if not BOT_TOKEN:
-            print("❌ BOT_TOKEN не найден после валидации. Тест прерван.")
-            return False
-        
-        # Создаем бота
-        print("🤖 Создаем экземпляр бота...")
-        bot = Bot(token=BOT_TOKEN)
-        
-        # Получаем информацию о боте
-        print("📋 Получаем информацию о боте...")
-        bot_info = await bot.get_me()
-        print(f"✅ Бот: @{bot_info.username} ({bot_info.first_name})")
-        
-        # Проверяем команды
-        print("📱 Проверяем команды...")
-        commands = await bot.get_my_commands()
-        print(f"✅ Команд в меню: {len(commands)}")
-        for cmd in commands:
-            print(f"   /{cmd.command} - {cmd.description}")
-        
-        # Проверяем webhook
-        print("🌐 Проверяем webhook...")
-        webhook_info = await bot.get_webhook_info()
-        print(f"✅ Webhook URL: {webhook_info.url or 'Не установлен'}")
-        print(f"✅ Pending updates: {webhook_info.pending_update_count}")
-        
-        return True
-        
-    except Exception as e:
-        print(f"❌ Ошибка тестирования бота: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
 
-def test_all_modules():
-    """Тестируем все модули"""
+@pytest.mark.skip(reason="Requires real Telegram credentials and network access")
+def test_bot_functionality() -> None:
+    """Placeholder test for interacting with Telegram's API."""
+    from telegram import Bot
+    from config import BOT_TOKEN, validate_config
+
+    validate_config()
+    if not BOT_TOKEN:
+        pytest.fail("BOT_TOKEN not found")
+
+    bot = Bot(token=BOT_TOKEN)
+    bot_info = asyncio.get_event_loop().run_until_complete(bot.get_me())
+    assert bot_info is not None
+    asyncio.get_event_loop().run_until_complete(bot.get_my_commands())
+    asyncio.get_event_loop().run_until_complete(bot.get_webhook_info())
+
+
+def test_all_modules() -> None:
+    """Ensure important project modules can be imported."""
     modules = [
-        ("config", "from config import BOT_TOKEN, ADMIN_ID, validate_config"),
-        ("utils.keyboards", "from utils.keyboards import create_main_menu_keyboard"),
-        ("utils.database", "from utils.database import reactions_db"),
-        ("handlers.admin", "from handlers.admin import admin_command"),
-        ("handlers.reactions", "from handlers.reactions import handle_reaction"),
-        ("main_bot_railway", "import main_bot_railway"),
+        "config",
+        "utils.keyboards",
+        "utils.database",
+        "handlers.admin",
+        "handlers.reactions",
+        "main_bot_railway",
     ]
-    
-    success = 0
-    total = len(modules)
-    
-    print("🔍 ТЕСТИРОВАНИЕ ВСЕХ МОДУЛЕЙ")
-    print("=" * 50)
-    
-    for name, import_cmd in modules:
-        try:
-            exec(import_cmd)
-            print(f"✅ {name}: OK")
-            success += 1
-        except Exception as e:
-            print(f"❌ {name}: FAILED - {e}")
-    
-    print(f"\n📊 Модули: {success}/{total}")
-    return success == total
 
-async def main():
-    """Главная функция тестирования"""
-    print("🚀 ФИНАЛЬНОЕ ТЕСТИРОВАНИЕ СИСТЕМЫ")
-    print("=" * 60)
-    
-    # Тест модулей
-    modules_ok = test_all_modules()
-    
-    # Тест бота
-    print("\n🤖 ТЕСТИРОВАНИЕ БОТА")
-    print("=" * 30)
-    bot_ok = await test_bot_functionality()
-    
-    # Результаты
-    print("\n" + "=" * 60)
-    if modules_ok and bot_ok:
-        print("🎉 ВСЕ ТЕСТЫ ПРОШЛИ УСПЕШНО!")
-        print("🔧 Все отступы исправлены")
-        print("📦 Все модули импортируются")  
-        print("🤖 Бот функционирует корректно")
-        print("🚀 Система готова к работе!")
-        return 0
-    else:
-        print("❌ ОБНАРУЖЕНЫ ПРОБЛЕМЫ")
-        if not modules_ok:
-            print("📦 Проблемы с модулями")
-        if not bot_ok:
-            print("🤖 Проблемы с ботом")
-        return 1
-
-if __name__ == "__main__":
-    exit_code = asyncio.run(main())
-    sys.exit(exit_code)
+    for module in modules:
+        importlib.import_module(module)
