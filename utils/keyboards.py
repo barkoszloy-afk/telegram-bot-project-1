@@ -15,6 +15,10 @@ def create_main_menu_keyboard():
         ],
         [
             InlineKeyboardButton("💝 Отношения", callback_data="category_relationships")
+        ],
+        [
+            InlineKeyboardButton("ℹ️ О боте", callback_data="category_about"),
+            InlineKeyboardButton("⚙️ Настройки", callback_data="category_settings")
         ]
     ]
     return InlineKeyboardMarkup(keyboard)

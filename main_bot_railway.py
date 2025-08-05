@@ -332,6 +332,16 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 🤝 **Рабочие отношения** - профессиональное общение
 """
                 keyboard = create_relationships_submenu()
+            elif category == "about":
+                await query.answer()
+                update.message = query.message
+                await about_command(update, context)
+                return
+            elif category == "settings":
+                await query.answer()
+                update.message = query.message
+                await settings_command(update, context)
+                return
             else:
                 await query.answer(f"📂 Категория: {category}\n🚧 В разработке!", show_alert=True)
                 return
@@ -804,8 +814,10 @@ def main():
         application.add_handler(CommandHandler("restart", restart_command))
         application.add_handler(CommandHandler("broadcast", broadcast_command))
         application.add_handler(CommandHandler("cleanup", cleanup_command))
-        
+
         # Обработчики callback и ошибок
+        application.add_handler(CallbackQueryHandler(handle_callback_query, pattern="^category_about$"))
+        application.add_handler(CallbackQueryHandler(handle_callback_query, pattern="^category_settings$"))
         application.add_handler(CallbackQueryHandler(handle_callback_query))
         application.add_error_handler(error_handler)
         
@@ -880,6 +892,8 @@ def run_local_polling():
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("instructions", instructions_command))
     application.add_handler(CommandHandler("test", test_command))
+    application.add_handler(CallbackQueryHandler(handle_callback_query, pattern="^category_about$"))
+    application.add_handler(CallbackQueryHandler(handle_callback_query, pattern="^category_settings$"))
     application.add_handler(CallbackQueryHandler(handle_callback_query))
     application.add_error_handler(error_handler)
     
