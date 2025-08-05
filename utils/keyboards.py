@@ -59,6 +59,95 @@ def create_back_to_menu_keyboard():
     keyboard = [[InlineKeyboardButton("🔙 Главное меню", callback_data="main_menu")]]
     return InlineKeyboardMarkup(keyboard)
 
+def create_esoteric_submenu():
+    """Создает подменю для эзотерики с новыми кнопками"""
+    keyboard = [
+        [
+            InlineKeyboardButton("🔮 Гороскоп", callback_data="esoteric_horoscope"),
+            InlineKeyboardButton("🌙 Карта дня", callback_data="esoteric_daily_card")
+        ],
+        [
+            InlineKeyboardButton("☀️ Доброе утро", callback_data="esoteric_good_morning"),
+            InlineKeyboardButton("🌜 Лунный прогноз", callback_data="esoteric_lunar_forecast")
+        ],
+        [
+            InlineKeyboardButton("🎯 Интерактив", callback_data="esoteric_interactive"),
+            InlineKeyboardButton("🌟 Вечернее послание", callback_data="esoteric_evening_message")
+        ],
+        [
+            InlineKeyboardButton("🔙 Главное меню", callback_data="main_menu")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def create_motivation_submenu():
+    """Создает подменю для мотивации"""
+    keyboard = [
+        [
+            InlineKeyboardButton("🌅 Утренняя мотивация", callback_data="motivation_morning"),
+            InlineKeyboardButton("🌙 Вечерние размышления", callback_data="motivation_evening")
+        ],
+        [
+            InlineKeyboardButton("💪 Преодоление трудностей", callback_data="motivation_overcome"),
+            InlineKeyboardButton("🎯 Достижение целей", callback_data="motivation_goals")
+        ],
+        [
+            InlineKeyboardButton("🔙 Главное меню", callback_data="main_menu")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def create_development_submenu():
+    """Создает подменю для развития"""
+    keyboard = [
+        [
+            InlineKeyboardButton("🧠 Развитие мышления", callback_data="development_thinking"),
+            InlineKeyboardButton("📚 Обучение и знания", callback_data="development_learning")
+        ],
+        [
+            InlineKeyboardButton("🎨 Творческое развитие", callback_data="development_creative"),
+            InlineKeyboardButton("💼 Карьера и бизнес", callback_data="development_career")
+        ],
+        [
+            InlineKeyboardButton("🔙 Главное меню", callback_data="main_menu")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def create_health_submenu():
+    """Создает подменю для здоровья"""
+    keyboard = [
+        [
+            InlineKeyboardButton("🏃‍♂️ Физическая активность", callback_data="health_physical"),
+            InlineKeyboardButton("🧘‍♀️ Ментальное здоровье", callback_data="health_mental")
+        ],
+        [
+            InlineKeyboardButton("🥗 Питание и диета", callback_data="health_nutrition"),
+            InlineKeyboardButton("😴 Сон и отдых", callback_data="health_sleep")
+        ],
+        [
+            InlineKeyboardButton("🔙 Главное меню", callback_data="main_menu")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def create_relationships_submenu():
+    """Создает подменю для отношений"""
+    keyboard = [
+        [
+            InlineKeyboardButton("💕 Любовь и романтика", callback_data="relationships_love"),
+            InlineKeyboardButton("👨‍👩‍👧‍👦 Семья и дети", callback_data="relationships_family")
+        ],
+        [
+            InlineKeyboardButton("👥 Дружба и общение", callback_data="relationships_friendship"),
+            InlineKeyboardButton("🤝 Рабочие отношения", callback_data="relationships_work")
+        ],
+        [
+            InlineKeyboardButton("🔙 Главное меню", callback_data="main_menu")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
 def create_zodiac_keyboard():
     """Создает клавиатуру знаков зодиака"""
     from config import ZODIAC_SIGNS, ZODIAC_REVERSE_MAPPING
