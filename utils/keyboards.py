@@ -2,21 +2,36 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from config import REACTION_EMOJIS
 
-def create_main_menu_keyboard():
-    """Создает главное меню с категориями"""
-    keyboard = [
-        [
-            InlineKeyboardButton("💫 Мотивация", callback_data="category_motivation"),
-            InlineKeyboardButton("🔮 Эзотерика", callback_data="category_esoteric")
-        ],
-        [
-            InlineKeyboardButton("🎯 Развитие", callback_data="category_development"),
-            InlineKeyboardButton("🌟 Здоровье", callback_data="category_health")
-        ],
-        [
-            InlineKeyboardButton("💝 Отношения", callback_data="category_relationships")
+# Категории главного меню.
+# Добавление новой категории осуществляется добавлением кортежа
+# (callback_data, "Текст кнопки") в этот список. Функция
+# `create_main_menu_keyboard` автоматически разместит кнопки по
+# два в ряд, сохраняя порядок.
+MENU_CATEGORIES = [
+    ("category_motivation", "💫 Мотивация"),
+    ("category_esoteric", "🔮 Эзотерика"),
+    ("category_development", "🎯 Развитие"),
+    ("category_health", "🌟 Здоровье"),
+    ("category_relationships", "💝 Отношения"),
+]
+
+def create_main_menu_keyboard() -> InlineKeyboardMarkup:
+    """Создает главное меню с категориями.
+
+    Для добавления новой категории достаточно добавить кортеж
+    (callback_data, "Текст кнопки") в список `MENU_CATEGORIES`.
+    Клавиатура будет сформирована автоматически по две кнопки в ряд.
+    """
+
+    keyboard = []
+    # Берем категории по две в ряд
+    for i in range(0, len(MENU_CATEGORIES), 2):
+        row = [
+            InlineKeyboardButton(text, callback_data=callback)
+            for callback, text in MENU_CATEGORIES[i : i + 2]
         ]
-    ]
+        keyboard.append(row)
+
     return InlineKeyboardMarkup(keyboard)
 
 def create_submenu_keyboard(category: str):
