@@ -491,6 +491,16 @@ async def post_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
     if update.message.video:
         file_id = update.message.video.file_id
+        caption = update.message.caption or ""
+        if contains_forbidden(caption):
+            await update.message.reply_text("В подписи обнаружены запрещённые слова. Публикация отклонена.")
+            logging.info(f"Отклонено видео с запрещёнными словами: {caption}")
+            return ConversationHandler.END
+        await context.bot.send_video(chat_id=CHANNEL_ID, video=file_id, caption=caption)
+        await update.message.reply_text("Видео опубликовано в канал!")
+        logging.info(f"Опубликовано видео: {caption}")
+        return ConversationHandler.END
+    return ConversationHandler.END
 
 # --- Запуск бота ---
 if __name__ == '__main__':
