@@ -58,7 +58,7 @@ jobs:
     - name: Test with pytest
       run: |
         # Запускаем ВСЕ тесты - теперь все должны проходить!
-        pytest tests/ -v --cov=handlers --cov=utils --cov-report=xml --cov-report=term-missing --tb=short
+        pytest -v --asyncio-mode=auto --cov=handlers --cov=utils --cov-report=xml --cov-report=term-missing --tb=short
 
   security:
     runs-on: ubuntu-latest
@@ -107,7 +107,7 @@ jobs:
     
     - name: Run integration tests
       run: |
-        pytest tests/ -v -m "integration" || echo "No integration tests found - all tests passed"
+        pytest -v -m "integration" --asyncio-mode=auto || echo "No integration tests found - all tests passed"
     
     - name: Test bot configuration
       run: |
@@ -180,7 +180,7 @@ jobs:
     
     - name: Run performance tests
       run: |
-        pytest tests/ -v -m "slow" --benchmark-only || echo "No performance tests found - performance check passed"
+        pytest -v -m "slow" --benchmark-only --asyncio-mode=auto || echo "No performance tests found - performance check passed"
     
     - name: Memory usage test
       run: |
