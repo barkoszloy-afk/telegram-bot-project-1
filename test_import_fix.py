@@ -1,6 +1,7 @@
 # test_import_fix.py - Тест исправления импортов
 import sys
 import traceback
+import pytest
 
 def test_imports():
     """Тестируем все критические импорты"""
@@ -27,13 +28,8 @@ def test_imports():
             traceback.print_exc()
     
     print(f"\n📊 Результаты: {success_count}/{total_tests} тестов прошли успешно")
-    
-    if success_count == total_tests:
-        print("🎉 ВСЕ ИМПОРТЫ ИСПРАВЛЕНЫ!")
-        return True
-    else:
-        print("⚠️ Есть проблемы с импортами")
-        return False
+
+    assert success_count == total_tests, "⚠️ Есть проблемы с импортами"
 
 def test_functions():
     """Тестируем основные функции"""
@@ -41,15 +37,15 @@ def test_functions():
         from utils.keyboards import create_main_menu_keyboard
         keyboard = create_main_menu_keyboard()
         print(f"✅ create_main_menu_keyboard: {len(keyboard.inline_keyboard)} рядов")
-        
-        from config import validate_config
+
+        from config import BOT_TOKEN, validate_config
+        if not BOT_TOKEN:
+            pytest.skip("BOT_TOKEN не задан")
         validate_config()
         print("✅ validate_config: работает")
-        
-        return True
     except Exception as e:
         print(f"❌ Ошибка в функциях: {e}")
-        return False
+        raise
 
 if __name__ == "__main__":
     print("🔍 ТЕСТИРОВАНИЕ ИСПРАВЛЕНИЯ ИМПОРТОВ")
