@@ -1,12 +1,15 @@
 # main_bot_railway.py - Минимальная версия с базовым меню
 import logging
 import os
+import threading
+import time
 from typing import Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, 
     ContextTypes
 )
+from flask import Flask, jsonify
 
 # Импорты из наших модулей
 from config import (
@@ -45,6 +48,9 @@ from handlers.chatgpt_commands import (
     handle_chatgpt_callback, chatgpt_command
 )
 
+# Flask app для health endpoint
+app = Flask(__name__)
+
 # Настройка логирования
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -60,6 +66,53 @@ logger = logging.getLogger(__name__)
 # Глобальные переменные
 application: Optional[Application] = None
 start_time: Optional[float] = None
+
+# ================== FLASK ENDPOINTS ==================
+
+@app.route('/health')
+def health_check():
+    """Health check endpoint для Railway"""
+    uptime = time.time() - start_time if start_time else 0
+    return jsonify({
+        'status': 'healthy',
+        'uptime_seconds': round(uptime, 2),
+        'service': 'telegram-bot',
+        'version': '1.0.0'
+    })
+
+@app.route('/')
+def root():
+    """Root endpoint"""
+    return jsonify({
+        'message': 'Telegram Bot is running',
+        'status': 'online',
+        'endpoints': ['/health', '/webhook']
+    })
+
+@app.route('/webhook/<token>', methods=['POST'])
+def webhook(token):
+    """Webhook endpoint для Telegram"""
+    from flask import request
+    import asyncio
+    
+    # Проверяем токен для безопасности
+    if token != BOT_TOKEN:
+        return '', 404
+    
+    if application:
+        update_data = request.get_json()
+        if update_data:
+            update = Update.de_json(update_data, application.bot)
+            # Запускаем обработку update в event loop
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(application.process_update(update))
+                loop.close()
+            except Exception as e:
+                logger.error(f"Ошибка обработки webhook: {e}")
+    
+    return '', 200
 
 # ================== КОМАНДЫ БОТА ==================
 
@@ -837,26 +890,36 @@ def main():
             
             webhook_url = f"https://{railway_domain}/webhook/{BOT_TOKEN}"
             webhook_path = f"/webhook/{BOT_TOKEN}"
-            port = int(os.environ.get("PORT", 8443))
+            port = int(os.environ.get("PORT", 8080))
             
             logger.info(f"🌐 Webhook URL: {webhook_url}")
             logger.info(f"�️ Webhook path: {webhook_path}")
             logger.info(f"�🔌 Listening on port: {port}")
             
-            # Устанавливаем команды перед запуском webhook
-            async def post_init(application: Application) -> None:
-                await setup_bot_commands(application)
+            # Устанавливаем webhook через API
+            async def setup_webhook():
+                if application and application.bot:
+                    await application.bot.set_webhook(webhook_url)
+                    await setup_bot_commands(application)
+                    logger.info("✅ Webhook установлен успешно!")
+                else:
+                    logger.error("❌ Application не инициализировано")
             
-            application.post_init = post_init
+            # Запускаем setup в отдельном потоке
+            def run_setup():
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(setup_webhook())
+                loop.close()
             
-            # Запуск webhook с встроенным сервером
-            application.run_webhook(
-                listen="0.0.0.0",
-                port=port,
-                url_path=webhook_path,
-                webhook_url=webhook_url,
-                drop_pending_updates=True,
-            )
+            setup_thread = threading.Thread(target=run_setup)
+            setup_thread.start()
+            setup_thread.join()  # Ждем завершения setup
+            
+            # Запускаем Flask server
+            logger.info(f"🏥 Запуск Flask server на порту {port}")
+            app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
         else:
             logger.info("🏠 Запуск в локальном режиме")
             run_local_polling()
