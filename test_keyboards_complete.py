@@ -17,8 +17,10 @@ class TestKeyboards(unittest.TestCase):
         """Тест главного меню"""
         keyboard = create_main_menu_keyboard()
         self.assertIsInstance(keyboard, InlineKeyboardMarkup)
-        self.assertEqual(len(keyboard.inline_keyboard), 3)
+        self.assertEqual(len(keyboard.inline_keyboard), 6)
         self.assertEqual(len(keyboard.inline_keyboard[0]), 2)
+        self.assertEqual(len(keyboard.inline_keyboard[-1]), 1)
+        self.assertEqual(keyboard.inline_keyboard[3][0].text, "♈ Гороскоп")
         print("✅ Главное меню: OK")
 
     def test_create_submenu_keyboard(self):

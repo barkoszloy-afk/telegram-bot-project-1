@@ -10,15 +10,26 @@ def create_main_menu_keyboard():
     keyboard = [
         [
             InlineKeyboardButton("💫 Мотивация", callback_data="category_motivation"),
-            InlineKeyboardButton("🔮 Эзотерика", callback_data="category_esoteric")
+            InlineKeyboardButton("🔮 Эзотерика", callback_data="category_esoteric"),
         ],
         [
             InlineKeyboardButton("🎯 Развитие", callback_data="category_development"),
-            InlineKeyboardButton("🌟 Здоровье", callback_data="category_health")
+            InlineKeyboardButton("🌟 Здоровье", callback_data="category_health"),
         ],
         [
-            InlineKeyboardButton("💝 Отношения", callback_data="category_relationships")
-        ]
+            InlineKeyboardButton("💝 Отношения", callback_data="category_relationships"),
+        ],
+        [
+            InlineKeyboardButton("♈ Гороскоп", callback_data="horoscope"),
+            InlineKeyboardButton("🃏 Карта дня", callback_data="card_day"),
+        ],
+        [
+            InlineKeyboardButton("🌙 Лунный прогноз", callback_data="lunar_forecast"),
+            InlineKeyboardButton("🌆 Вечернее послание", callback_data="evening_message"),
+        ],
+        [
+            InlineKeyboardButton("🌅 Доброе утро!", callback_data="good_morning"),
+        ],
     ]
     return InlineKeyboardMarkup(keyboard)
 
