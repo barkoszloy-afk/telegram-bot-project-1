@@ -3,10 +3,12 @@ import logging
 import os
 from typing import Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.error import Conflict
 from telegram.ext import (
-    Application, CommandHandler, CallbackQueryHandler, 
+    Application, CommandHandler, CallbackQueryHandler,
     ContextTypes
 )
+from httpx import ConnectError
 
 # Импорты из наших модулей
 from config import (
@@ -689,7 +691,14 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик ошибок"""
-    logger.error(f"Exception while handling an update: {context.error}")
+    error = context.error
+    if isinstance(error, ConnectError):
+        logger.warning(f"⚠️ Network issue: {error}")
+        return
+    if isinstance(error, Conflict):
+        logger.error(f"❗ Conflict detected: {error}")
+        return
+    logger.error(f"Exception while handling an update: {error}")
 
 # ================== SETUP И ЗАПУСК ==================
 
@@ -850,13 +859,20 @@ def main():
             application.post_init = post_init
             
             # Запуск webhook с встроенным сервером
-            application.run_webhook(
-                listen="0.0.0.0",
-                port=port,
-                url_path=webhook_path,
-                webhook_url=webhook_url,
-                drop_pending_updates=True,
-            )
+            try:
+                application.run_webhook(
+                    listen="0.0.0.0",
+                    port=port,
+                    url_path=webhook_path,
+                    webhook_url=webhook_url,
+                    drop_pending_updates=True,
+                )
+            except RuntimeError as e:
+                logger.error(f"Webhook unavailable: {e}")
+                logger.info(
+                    "Falling back to polling. Install 'python-telegram-bot[webhooks]' for webhook support."
+                )
+                run_local_polling()
         else:
             logger.info("🏠 Запуск в локальном режиме")
             run_local_polling()
@@ -899,7 +915,10 @@ def run_local_polling():
         await setup_bot_commands(application)
     
     application.post_init = post_init
-    application.run_polling(drop_pending_updates=True)
+    try:
+        application.run_polling(drop_pending_updates=True)
+    except Conflict as e:
+        logger.error(f"Polling aborted due to conflict: {e}")
 
 if __name__ == '__main__':
     main()

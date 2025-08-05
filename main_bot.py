@@ -15,6 +15,8 @@ from telegram.ext import (
     ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler,
     filters, ConversationHandler, CallbackQueryHandler
 )
+from telegram.error import Conflict
+from httpx import ConnectError
 
 # --- Загрузка переменных окружения ---
 load_dotenv()
@@ -670,6 +672,17 @@ async def post_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # --- Запуск бота ---
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    """Global error handler"""
+    err = context.error
+    if isinstance(err, ConnectError):
+        logging.warning(f"Network issue: {err}")
+        return
+    if isinstance(err, Conflict):
+        logging.error(f"Conflict detected: {err}")
+        return
+    logging.error(f"Unhandled exception: {err}")
+
 if __name__ == '__main__':
     import sys
 
@@ -684,6 +697,7 @@ if __name__ == '__main__':
 
     app = ApplicationBuilder().token(
         BOT_TOKEN).connect_timeout(60).read_timeout(60).build()
+    app.add_error_handler(error_handler)
 
     # Регистрация обработчиков команд
     app.add_handler(CommandHandler("start", start))
@@ -740,4 +754,7 @@ if __name__ == '__main__':
     )
 
     print("Бот запущен. Ожидание сообщений... (Ctrl+C для остановки)")
-    app.run_polling()
+    try:
+        app.run_polling()
+    except Conflict as e:
+        logging.error(f"Polling aborted due to conflict: {e}")
