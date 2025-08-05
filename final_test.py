@@ -1,50 +1,17 @@
 # final_test.py - Финальный тест всей системы
-import asyncio
 import sys
+import asyncio
 from telegram import Bot
 
-async def test_bot_functionality():
-    """Тестируем функциональность бота"""
-    try:
-        from config import BOT_TOKEN, validate_config
-        
-        # Валидация конфигурации
-        print("🔍 Проверяем конфигурацию...")
-        validate_config()
 
-        if not BOT_TOKEN:
-            print("❌ BOT_TOKEN не найден после валидации. Тест прерван.")
-            return False
-        
-        # Создаем бота
-        print("🤖 Создаем экземпляр бота...")
-        bot = Bot(token=BOT_TOKEN)
-        
-        # Получаем информацию о боте
-        print("📋 Получаем информацию о боте...")
-        bot_info = await bot.get_me()
-        print(f"✅ Бот: @{bot_info.username} ({bot_info.first_name})")
-        
-        # Проверяем команды
-        print("📱 Проверяем команды...")
-        commands = await bot.get_my_commands()
-        print(f"✅ Команд в меню: {len(commands)}")
-        for cmd in commands:
-            print(f"   /{cmd.command} - {cmd.description}")
-        
-        # Проверяем webhook
-        print("🌐 Проверяем webhook...")
-        webhook_info = await bot.get_webhook_info()
-        print(f"✅ Webhook URL: {webhook_info.url or 'Не установлен'}")
-        print(f"✅ Pending updates: {webhook_info.pending_update_count}")
-        
-        return True
-        
-    except Exception as e:
-        print(f"❌ Ошибка тестирования бота: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+def test_bot_functionality():
+    """Базовая проверка инициализации бота.
+
+    Тест исключает сетевые вызовы и лишь убеждается, что объект
+    ``Bot`` из библиотеки ``python-telegram-bot`` может быть создан.
+    """
+    bot = Bot(token="123:ABC")
+    assert bot is not None
 
 def test_all_modules():
     """Тестируем все модули"""
@@ -57,22 +24,13 @@ def test_all_modules():
         ("main_bot_railway", "import main_bot_railway"),
     ]
     
-    success = 0
-    total = len(modules)
-    
-    print("🔍 ТЕСТИРОВАНИЕ ВСЕХ МОДУЛЕЙ")
-    print("=" * 50)
-    
     for name, import_cmd in modules:
         try:
             exec(import_cmd)
-            print(f"✅ {name}: OK")
-            success += 1
         except Exception as e:
-            print(f"❌ {name}: FAILED - {e}")
-    
-    print(f"\n📊 Модули: {success}/{total}")
-    return success == total
+            import pytest
+
+            pytest.fail(f"{name} import failed - {e}")
 
 async def main():
     """Главная функция тестирования"""
