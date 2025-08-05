@@ -1,0 +1,3 @@
+[tool.pytest.ini_options]
+# Enable automatic event loop handling for async tests
+asyncio_mode = "auto"
