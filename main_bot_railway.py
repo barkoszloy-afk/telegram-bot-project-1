@@ -1,7 +1,9 @@
 # main_bot_railway.py - Минимальная версия с базовым меню
 import logging
 import os
+import asyncio
 from typing import Optional
+from aiohttp import web
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, 
@@ -60,6 +62,38 @@ logger = logging.getLogger(__name__)
 # Глобальные переменные
 application: Optional[Application] = None
 start_time: Optional[float] = None
+
+# ================== WEB ENDPOINTS ==================
+
+async def health_check(request: web.Request) -> web.Response:
+    """Healthcheck endpoint for external services"""
+    import time
+    uptime = 0
+    if start_time:
+        uptime = time.time() - start_time
+    data = {"status": "ok", "uptime_seconds": round(uptime, 2)}
+    return web.json_response(data)
+
+
+async def logs_endpoint(request: web.Request) -> web.Response:
+    """Return last lines of the bot log"""
+    try:
+        with open("bot.log", "r", encoding="utf-8") as f:
+            lines = f.readlines()[-200:]
+        return web.Response(text="".join(lines), content_type="text/plain")
+    except FileNotFoundError:
+        return web.Response(status=404, text="log file not found")
+
+
+async def telegram_webhook(request: web.Request) -> web.Response:
+    """Receive updates from Telegram and process them"""
+    global application
+    if not application:
+        return web.Response(status=503, text="bot not ready")
+    data = await request.json()
+    update = Update.de_json(data, application.bot)
+    await application.process_update(update)
+    return web.Response(text="ok")
 
 # ================== КОМАНДЫ БОТА ==================
 
@@ -827,36 +861,44 @@ def main():
         
         if is_railway:
             logger.info("🚀 Запуск в Railway режиме с webhook")
-            
-            # Получаем домен из переменных окружения Railway или используем fallback
+
             railway_domain = (
-                os.environ.get('RAILWAY_PUBLIC_DOMAIN') or 
+                os.environ.get('RAILWAY_PUBLIC_DOMAIN') or
                 os.environ.get('RAILWAY_STATIC_URL') or
-                "telegram-bot-project-1-production.up.railway.app"  # fallback домен
+                "telegram-bot-project-1-production.up.railway.app"
             )
-            
             webhook_url = f"https://{railway_domain}/webhook/{BOT_TOKEN}"
             webhook_path = f"/webhook/{BOT_TOKEN}"
             port = int(os.environ.get("PORT", 8443))
-            
+
             logger.info(f"🌐 Webhook URL: {webhook_url}")
-            logger.info(f"�️ Webhook path: {webhook_path}")
-            logger.info(f"�🔌 Listening on port: {port}")
-            
-            # Устанавливаем команды перед запуском webhook
-            async def post_init(application: Application) -> None:
-                await setup_bot_commands(application)
-            
-            application.post_init = post_init
-            
-            # Запуск webhook с встроенным сервером
-            application.run_webhook(
-                listen="0.0.0.0",
-                port=port,
-                url_path=webhook_path,
-                webhook_url=webhook_url,
-                drop_pending_updates=True,
-            )
+            logger.info(f"🛣️ Webhook path: {webhook_path}")
+            logger.info(f"🔌 Listening on port: {port}")
+
+            async def run_railway() -> None:
+                async def post_init(app: Application) -> None:
+                    await setup_bot_commands(app)
+
+                application.post_init = post_init
+
+                await application.initialize()
+                await application.bot.set_webhook(webhook_url, drop_pending_updates=True)
+
+                web_app = web.Application()
+                web_app.router.add_post(webhook_path, telegram_webhook)
+                web_app.router.add_get('/health', health_check)
+                web_app.router.add_get('/logs', logs_endpoint)
+
+                runner = web.AppRunner(web_app)
+                await runner.setup()
+                site = web.TCPSite(runner, '0.0.0.0', port)
+                await site.start()
+
+                await application.start()
+                logger.info("✅ Webhook сервер запущен")
+                await asyncio.Event().wait()
+
+            asyncio.run(run_railway())
         else:
             logger.info("🏠 Запуск в локальном режиме")
             run_local_polling()
