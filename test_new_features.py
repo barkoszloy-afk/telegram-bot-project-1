@@ -1,10 +1,12 @@
 # test_new_features.py - Тест новых эзотерических функций
 import asyncio
 import sys
+import pytest
 from telegram import Update
 from telegram.ext import ContextTypes
 
 # Эмулируем создание новых клавиатур
+@pytest.mark.asyncio
 async def test_new_keyboards():
     """Тестируем новые клавиатуры"""
     print("🧪 ТЕСТИРОВАНИЕ НОВЫХ ЭЗОТЕРИЧЕСКИХ ФУНКЦИЙ")
@@ -67,6 +69,7 @@ async def test_new_keyboards():
         traceback.print_exc()
         return False
 
+@pytest.mark.asyncio
 async def test_callback_data():
     """Тестируем обработку callback данных"""
     print("\n🧪 ТЕСТИРОВАНИЕ CALLBACK ОБРАБОТЧИКОВ")

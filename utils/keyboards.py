@@ -14,7 +14,8 @@ def create_main_menu_keyboard():
             InlineKeyboardButton("🌟 Здоровье", callback_data="category_health")
         ],
         [
-            InlineKeyboardButton("💝 Отношения", callback_data="category_relationships")
+            InlineKeyboardButton("💝 Отношения", callback_data="category_relationships"),
+            InlineKeyboardButton("🤖 ChatGPT", callback_data="chatgpt_menu")
         ]
     ]
     return InlineKeyboardMarkup(keyboard)

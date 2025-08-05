@@ -41,6 +41,9 @@ from handlers.content_commands import (
 from handlers.admin_commands import (
     logs_command, restart_command, broadcast_command, cleanup_command
 )
+from handlers.chatgpt_commands import (
+    handle_chatgpt_callback, chatgpt_command
+)
 
 # Настройка логирования
 logging.basicConfig(
@@ -605,6 +608,10 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                 parse_mode='Markdown'
             )
         
+        # ChatGPT callback'ы
+        elif data.startswith("gpt_") or data == "back_to_main":
+            await handle_chatgpt_callback(update, context)
+        
         # Заглушки для категорий (старые)
         elif data.startswith("category_"):
             await query.answer("🚧 В разработке!", show_alert=True)
@@ -774,6 +781,7 @@ def main():
         application.add_handler(CommandHandler("help", help_command))
         application.add_handler(CommandHandler("instructions", instructions_command))
         application.add_handler(CommandHandler("test", test_command))
+        application.add_handler(CommandHandler("chatgpt", chatgpt_command))
         
         # Диагностические команды
         application.add_handler(CommandHandler("ping", ping_command))
@@ -880,6 +888,7 @@ def run_local_polling():
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("instructions", instructions_command))
     application.add_handler(CommandHandler("test", test_command))
+    application.add_handler(CommandHandler("chatgpt", chatgpt_command))
     application.add_handler(CallbackQueryHandler(handle_callback_query))
     application.add_error_handler(error_handler)
     

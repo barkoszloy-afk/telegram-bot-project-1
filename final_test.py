@@ -1,8 +1,10 @@
 # final_test.py - Финальный тест всей системы
 import asyncio
 import sys
+import pytest
 from telegram import Bot
 
+@pytest.mark.asyncio
 async def test_bot_functionality():
     """Тестируем функциональность бота"""
     try:

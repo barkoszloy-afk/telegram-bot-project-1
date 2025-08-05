@@ -11,6 +11,9 @@ BOT_TOKEN = os.getenv('BOT_TOKEN')
 # ID администратора
 ADMIN_ID = int(os.getenv('ADMIN_ID', '0'))
 
+# OpenAI API ключ
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+
 # Настройки таймаутов для Railway
 CONNECT_TIMEOUT = 30
 READ_TIMEOUT = 30
@@ -48,3 +51,9 @@ def validate_config():
     print("✅ Конфигурация загружена успешно")
     print(f"🤖 Токен бота: {BOT_TOKEN[:10]}...{BOT_TOKEN[-10:]}")
     print(f"👤 ID администратора: {ADMIN_ID}")
+    
+    # Проверяем OpenAI API ключ
+    if OPENAI_API_KEY:
+        print(f"🤖 OpenAI API: {OPENAI_API_KEY[:8]}...{OPENAI_API_KEY[-8:]}")
+    else:
+        print("⚠️ OpenAI API ключ не найден - ChatGPT функции будут недоступны")
