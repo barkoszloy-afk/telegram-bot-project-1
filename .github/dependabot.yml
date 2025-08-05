@@ -1,0 +1,62 @@
+version: 2
+updates:
+  # GitHub Actions обновления
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+  
+  # Python зависимости
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    # Разрешаем только patch и minor обновления для критических пакетов
+    ignore:
+      - dependency-name: "python-telegram-bot"
+        update-types: ["version-update:semver-major"]
+    # Группируем обновления для лучшей организации
+    groups:
+      telegram-deps:
+        patterns:
+          - "python-telegram-bot*"
+      dev-deps:
+        patterns:
+          - "pytest*"
+          - "black"
+          - "flake8*"
+          - "mypy*"
+      security-deps:
+        patterns:
+          - "bandit*"
+          - "safety*"
+  
+  # Docker обновления (если есть Dockerfile)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "09:00"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "docker"
