@@ -7,6 +7,7 @@ Telegram Bot для публикации постов в канал
 # --- Импорты ---
 import os
 import logging
+import asyncio
 from dotenv import load_dotenv
 from telegram import (
     Update, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
@@ -740,4 +741,5 @@ if __name__ == '__main__':
     )
 
     print("Бот запущен. Ожидание сообщений... (Ctrl+C для остановки)")
+    asyncio.run(app.bot.delete_webhook(drop_pending_updates=True))
     app.run_polling()

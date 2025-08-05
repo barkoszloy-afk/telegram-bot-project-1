@@ -1,6 +1,7 @@
 # main_bot_railway.py - Минимальная версия с базовым меню
 import logging
 import os
+import asyncio
 from typing import Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -899,6 +900,7 @@ def run_local_polling():
         await setup_bot_commands(application)
     
     application.post_init = post_init
+    asyncio.run(application.bot.delete_webhook(drop_pending_updates=True))
     application.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':

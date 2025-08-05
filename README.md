@@ -62,6 +62,10 @@ To start the bot, run:
 python main_bot.py
 ```
 
+> **Note**: Run only one instance of the bot in polling mode at a time. 
+> Running multiple polling processes simultaneously can lead to
+> duplicate update handling and unexpected behavior.
+
 ## Available Commands
 
 - `/start` - Welcome message and command list
