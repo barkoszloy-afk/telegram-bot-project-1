@@ -3,6 +3,7 @@
 import pytest
 import sys
 import os
+import time
 from unittest.mock import Mock, AsyncMock
 
 # Добавляем корневую директорию в путь
@@ -32,6 +33,21 @@ def mock_context():
     context.user_data = {}
     return context
 
+# Fallback benchmark fixture if pytest-benchmark isn't installed
+try:  # pragma: no cover - executed only when plugin missing
+    import pytest_benchmark  # noqa: F401
+except Exception:  # pragma: no cover
+    @pytest.fixture
+    def benchmark():
+        def _benchmark(func, *args, **kwargs):
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            elapsed = time.perf_counter() - start
+            print(f"Benchmark: {elapsed:.6f}s")
+            return result
+
+        return _benchmark
+
 # Маркеры для pytest
 pytest_plugins = []
 
@@ -45,4 +61,7 @@ def pytest_configure(config):
     )
     config.addinivalue_line(
         "markers", "unit: marks tests as unit tests"
+    )
+    config.addinivalue_line(
+        "markers", "benchmark: performance benchmark tests"
     )
