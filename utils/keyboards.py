@@ -2,20 +2,47 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from config import REACTION_EMOJIS
 
-def create_main_menu_keyboard():
-    """Создает главное меню с категориями"""
+
+def create_main_menu_keyboard(subscribed_categories: set[str] | None = None):
+    """Создает главное меню с категориями.
+
+    Если категория присутствует в ``subscribed_categories``, к названию кнопки
+    добавляется отметка «✅».
+    """
+
+    if subscribed_categories is None:
+        subscribed_categories = set()
+
+    def _label(text: str, category: str) -> str:
+        return f"{text} ✅" if category in subscribed_categories else text
+
     keyboard = [
         [
-            InlineKeyboardButton("💫 Мотивация", callback_data="category_motivation"),
-            InlineKeyboardButton("🔮 Эзотерика", callback_data="category_esoteric")
+            InlineKeyboardButton(
+                _label("💫 Мотивация", "motivation"),
+                callback_data="category_motivation",
+            ),
+            InlineKeyboardButton(
+                _label("🔮 Эзотерика", "esoteric"),
+                callback_data="category_esoteric",
+            ),
         ],
         [
-            InlineKeyboardButton("🎯 Развитие", callback_data="category_development"),
-            InlineKeyboardButton("🌟 Здоровье", callback_data="category_health")
+            InlineKeyboardButton(
+                _label("🎯 Развитие", "development"),
+                callback_data="category_development",
+            ),
+            InlineKeyboardButton(
+                _label("🌟 Здоровье", "health"),
+                callback_data="category_health",
+            ),
         ],
         [
-            InlineKeyboardButton("💝 Отношения", callback_data="category_relationships")
-        ]
+            InlineKeyboardButton(
+                _label("💝 Отношения", "relationships"),
+                callback_data="category_relationships",
+            )
+        ],
     ]
     return InlineKeyboardMarkup(keyboard)
 

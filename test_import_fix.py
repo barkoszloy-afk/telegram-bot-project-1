@@ -39,7 +39,7 @@ def test_functions():
     """Тестируем основные функции"""
     try:
         from utils.keyboards import create_main_menu_keyboard
-        keyboard = create_main_menu_keyboard()
+        keyboard = create_main_menu_keyboard(set())
         print(f"✅ create_main_menu_keyboard: {len(keyboard.inline_keyboard)} рядов")
         
         from config import validate_config

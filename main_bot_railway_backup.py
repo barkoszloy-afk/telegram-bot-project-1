@@ -528,7 +528,7 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query:
         await query.edit_message_text(
             text,
-            reply_markup=create_main_menu_keyboard(),
+            reply_markup=create_main_menu_keyboard(context.user_data.get("subscriptions", set())),
             parse_mode='Markdown'
         )
     else:
@@ -536,7 +536,7 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if message:
             await message.reply_text(
                 text,
-                reply_markup=create_main_menu_keyboard(),
+                reply_markup=create_main_menu_keyboard(context.user_data.get("subscriptions", set())),
                 parse_mode='Markdown'
             )
     # Mark menu as sent and current state
