@@ -45,6 +45,8 @@ from handlers.chatgpt_commands import (
     handle_chatgpt_callback, chatgpt_command
 )
 
+from telegram.ext._updater import WEBHOOKS_AVAILABLE
+
 # Настройка логирования
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -824,13 +826,21 @@ def main():
             os.environ.get('RAILWAY_DEPLOYMENT_ID') is not None or
             os.environ.get('PORT') is not None
         )
-        
+
         if is_railway:
             logger.info("🚀 Запуск в Railway режиме с webhook")
-            
+
+            if not WEBHOOKS_AVAILABLE:
+                logger.warning(
+                    "python-telegram-bot[webhooks] extras are missing. "
+                    "Falling back to polling mode."
+                )
+                run_local_polling()
+                return
+
             # Получаем домен из переменных окружения Railway или используем fallback
             railway_domain = (
-                os.environ.get('RAILWAY_PUBLIC_DOMAIN') or 
+                os.environ.get('RAILWAY_PUBLIC_DOMAIN') or
                 os.environ.get('RAILWAY_STATIC_URL') or
                 "telegram-bot-project-1-production.up.railway.app"  # fallback домен
             )
