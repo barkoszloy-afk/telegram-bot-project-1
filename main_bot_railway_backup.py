@@ -42,7 +42,6 @@ app = Flask(__name__)
 def health_check():
     """Healthcheck endpoint для Railway"""
     import time
-    global application, start_time
     
     # Проверяем состояние бота
     bot_status = "unknown"
@@ -75,7 +74,6 @@ def index():
 @app.route('/metrics')
 def get_metrics():
     """Метрики использования бота"""
-    global metrics, start_time
     import time
     
     uptime = 0
@@ -172,7 +170,6 @@ def setup_webhook_route():
     @app.route(f'/webhook/{BOT_TOKEN}', methods=['POST'])
     def webhook():
         """Обработчик webhook запросов от Telegram"""
-        global metrics
         try:
             # Получаем JSON данные от Telegram
             json_data = request.get_json()
