@@ -55,12 +55,30 @@ telegram-bot-project-1/
    CHANNEL_ID=@your_channel_username
    ```
 
+6. Verify that the application can access the token:
+   ```bash
+   python -c "import os; print(os.getenv('BOT_TOKEN'))"
+   ```
+   The command should output your token (or part of it), confirming the variable is set.
+
+
 ## Usage
 
 To start the bot, run:
 ```bash
 python main_bot.py
 ```
+
+## Testing
+
+Run the test suite with asyncio support:
+
+```bash
+pytest --asyncio-mode=auto
+```
+
+Pytest may warn if a test function returns a value instead of asserting.
+These warnings should be addressed over time.
 
 ## Available Commands
 
