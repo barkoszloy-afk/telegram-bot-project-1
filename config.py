@@ -1,9 +1,12 @@
 # config.py - Конфигурация бота
 import os
+import logging
 from dotenv import load_dotenv
 
 # Загружаем переменные окружения
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 # Токен бота
 BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -45,6 +48,7 @@ def validate_config():
     if not ADMIN_ID:
         raise ValueError("ADMIN_ID не найден в переменных окружения")
     
-    print(f"✅ Конфигурация загружена успешно")
-    print(f"🤖 Токен бота: {BOT_TOKEN[:10]}...{BOT_TOKEN[-10:]}")
-    print(f"👤 ID администратора: {ADMIN_ID}")
+    logger.info("✅ Конфигурация загружена успешно")
+    masked_token = BOT_TOKEN if len(BOT_TOKEN) <= 8 else f"{BOT_TOKEN[:4]}...{BOT_TOKEN[-4:]}"
+    logger.info(f"🤖 Токен бота: {masked_token}")
+    logger.info(f"👤 ID администратора: {ADMIN_ID}")
