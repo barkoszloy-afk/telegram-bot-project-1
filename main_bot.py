@@ -14,27 +14,25 @@ POSTS_KEYBOARD = [
 ]
 from telegram import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
-# Клавиатура для 12 знаков зодиака
-ZODIAC_SIGNS = [
-    ("Овен", "🐏"), ("Телец", "🐂"), ("Близнецы", "👯‍♂️"), ("Рак", "🦀"),
-    ("Лев", "🦁"), ("Дева", "👸"), ("Весы", "⚖️"), ("Скорпион", "🦂"),
-    ("Стрелец", "🏹"), ("Козерог", "🐐"), ("Водолей", "🌊"), ("Рыбы", "🐟")
-]
-
+# Константы из конфигурации
+from config import (
+    BOT_TOKEN,
+    ADMIN_ID,
+    ZODIAC_SIGNS,
+    REACTION_EMOJIS,
+    REACTION_NAMES,
+    REACTION_MESSAGES,
+)
 
 # --- Реакции ---
-REACTION_EMOJIS = ["❤️", "🙏", "🥹"]
-REACTION_NAMES = ["heart", "pray", "touched"]
-REACTION_MESSAGES = [
-    "Спасибо за сердечко!",
-    "Спасибо за поддержку!",
-    "Спасибо за эмоции!"
-]
 def get_reaction_keyboard(reactions):
     return [
         [
-            InlineKeyboardButton(f"{REACTION_EMOJIS[i]} {reactions.get(REACTION_NAMES[i], 0)}", callback_data=f"react_{REACTION_NAMES[i]}")
-            for i in range(3)
+            InlineKeyboardButton(
+                f"{REACTION_EMOJIS[i]} {reactions.get(REACTION_NAMES[i], 0)}",
+                callback_data=f"react_{REACTION_NAMES[i]}",
+            )
+            for i in range(len(REACTION_EMOJIS))
         ]
     ]
 
@@ -61,7 +59,6 @@ COMMANDS_TEXT = (
     "<b>⚙️ /settings</b> — настройки (только для администратора)"
 )
 # --- Импорт необходимых библиотек ---
-from dotenv import load_dotenv
 import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters, ConversationHandler, CallbackQueryHandler
@@ -69,10 +66,7 @@ import logging
 from datetime import datetime
 from telegram.constants import ChatAction
 
-# --- Загрузка переменных окружения из .env ---
-load_dotenv()
-BOT_TOKEN = os.getenv('BOT_TOKEN')  # Токен бота берётся из .env
-ADMIN_ID = 345470935  # ID администратора
+# ID администратора и токен бота берутся из config
 CHANNEL_ID = '@eto_vse_ty'  # username канала для публикации
 
 # --- Логирование ---
