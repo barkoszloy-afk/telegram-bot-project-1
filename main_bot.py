@@ -23,12 +23,15 @@ from config import (
     ADMIN_ID,
     BOT_TOKEN,
     CHANNEL_ID,
+    FORBIDDEN_WORDS,
+    REACTION_MESSAGES,
     REACTION_NAMES,
     validate_config,
 )
 from utils.keyboards import (
     create_admin_main_keyboard,
     create_posts_keyboard,
+    create_admin_panel_keyboard,
     create_reaction_buttons,
     create_zodiac_keyboard,
 )
@@ -42,14 +45,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # --- Реакции ---
-REACTION_MESSAGES = [
-    "Спасибо за сердечко!",
-    "Спасибо за поддержку!",
-    "Спасибо за эмоции!",
-]
-
-# --- Фильтр запрещённых слов ---
-FORBIDDEN_WORDS = ['badword1', 'badword2', 'spam']
 
 # --- Состояния для ConversationHandler ---
 POST_TEXT, POST_MEDIA = range(2)
@@ -87,25 +82,12 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         await update.message.reply_text("У вас нет доступа к админ-панели.")
         return
-    keyboard = [
-        [
-            InlineKeyboardButton("📋 Команды", callback_data='commands'),
-            InlineKeyboardButton("📝 Пост", callback_data='post')
-        ],
-        [
-            InlineKeyboardButton("📄 Логи", callback_data='logs'),
-            InlineKeyboardButton("❌ Отмена", callback_data='cancel')
-        ],
-        [
-            InlineKeyboardButton("📊 Статистика", callback_data='stats'),
-            InlineKeyboardButton("⚙️ Настройки", callback_data='settings')
-        ],
-        [
-            InlineKeyboardButton("🔙 Назад", callback_data='back')
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("<b>🛠️ Админ-панель:</b>", reply_markup=reply_markup, parse_mode="HTML")
+    reply_markup = create_admin_panel_keyboard()
+    await update.message.reply_text(
+        "<b>🛠️ Админ-панель:</b>",
+        reply_markup=reply_markup,
+        parse_mode="HTML",
+    )
 
 # --- Обработка нажатий на кнопки админ-панели ---
 async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -138,26 +120,12 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == 'settings':
         await query.edit_message_text("⚙️ <b>Настройки</b>\n(Здесь можно реализовать изменение параметров)", parse_mode="HTML")
     elif query.data == 'back':
-        # Возвращаем админ-панель в том же сообщении
-        keyboard = [
-            [
-                InlineKeyboardButton("📋 Команды", callback_data='commands'),
-                InlineKeyboardButton("📝 Пост", callback_data='post')
-            ],
-            [
-                InlineKeyboardButton("📄 Логи", callback_data='logs'),
-                InlineKeyboardButton("❌ Отмена", callback_data='cancel')
-            ],
-            [
-                InlineKeyboardButton("📊 Статистика", callback_data='stats'),
-                InlineKeyboardButton("⚙️ Настройки", callback_data='settings')
-            ],
-            [
-                InlineKeyboardButton("🔙 Назад", callback_data='back')
-            ]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text("<b>🛠️ Админ-панель:</b>", reply_markup=reply_markup, parse_mode="HTML")
+        reply_markup = create_admin_panel_keyboard()
+        await query.edit_message_text(
+            "<b>🛠️ Админ-панель:</b>",
+            reply_markup=reply_markup,
+            parse_mode="HTML",
+        )
 
 # --- Обработка команды /commands ---
 async def commands_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -283,10 +251,7 @@ async def reaction_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data['reactions'] = {k: 0 for k in REACTION_NAMES}
         if 'reaction_users' not in context.user_data:
             context.user_data['reaction_users'] = {k: set() for k in REACTION_NAMES}
-        # Индекс реакции
-        try:
-            idx = REACTION_NAMES.index(reaction)
-        except ValueError:
+        if reaction not in REACTION_NAMES:
             return
         # Если пользователь еще не голосовал за эту реакцию
         if user_id not in context.user_data['reaction_users'][reaction]:
@@ -294,7 +259,9 @@ async def reaction_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data['reaction_users'][reaction].add(user_id)
             # Благодарственное сообщение (popup)
             try:
-                await query.answer(REACTION_MESSAGES[idx], show_alert=True)
+                await query.answer(
+                    REACTION_MESSAGES.get(reaction, "Спасибо!"), show_alert=True
+                )
             except Exception:
                 pass
         else:

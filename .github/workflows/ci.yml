@@ -8,22 +8,34 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        task: [lint, test]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
+      - name: Cache pip
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install flake8 mypy pytest
-      - name: Lint with flake8
-        run: flake8
-      - name: Type check with mypy
-        run: mypy handlers utils
-      - name: Run tests
-        run: pytest -q
+      - name: Run task
+        run: |
+          if [ "${{ matrix.task }}" = "lint" ]; then
+            flake8
+            mypy handlers utils
+          else
+            pytest -q
+          fi

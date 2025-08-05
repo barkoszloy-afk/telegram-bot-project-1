@@ -46,6 +46,25 @@ def create_submenu_keyboard(category: str):
     ]
     return InlineKeyboardMarkup(keyboard)
 
+def create_admin_panel_keyboard() -> InlineKeyboardMarkup:
+    """Клавиатура админ-панели"""
+    keyboard = [
+        [
+            InlineKeyboardButton("📋 Команды", callback_data="commands"),
+            InlineKeyboardButton("📝 Пост", callback_data="post"),
+        ],
+        [
+            InlineKeyboardButton("📄 Логи", callback_data="logs"),
+            InlineKeyboardButton("❌ Отмена", callback_data="cancel"),
+        ],
+        [
+            InlineKeyboardButton("📊 Статистика", callback_data="stats"),
+            InlineKeyboardButton("⚙️ Настройки", callback_data="settings"),
+        ],
+        [InlineKeyboardButton("🔙 Назад", callback_data="back")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
 def get_reaction_keyboard(post_id: str):
     """
     Создает клавиатуру с кнопками-реакциями для поста.

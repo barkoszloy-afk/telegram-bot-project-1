@@ -1,20 +1,20 @@
 # final_test.py - Финальный тест всей системы
 import asyncio
 import sys
+import pytest
 from telegram import Bot
 
 async def test_bot_functionality():
     """Тестируем функциональность бота"""
     try:
         from config import BOT_TOKEN, validate_config
-        
+
         # Валидация конфигурации
         print("🔍 Проверяем конфигурацию...")
-        validate_config()
-
-        if not BOT_TOKEN:
-            print("❌ BOT_TOKEN не найден после валидации. Тест прерван.")
-            return False
+        try:
+            validate_config()
+        except ValueError as e:
+            pytest.skip(str(e))
         
         # Создаем бота
         print("🤖 Создаем экземпляр бота...")
@@ -37,14 +37,10 @@ async def test_bot_functionality():
         webhook_info = await bot.get_webhook_info()
         print(f"✅ Webhook URL: {webhook_info.url or 'Не установлен'}")
         print(f"✅ Pending updates: {webhook_info.pending_update_count}")
-        
-        return True
-        
     except Exception as e:
-        print(f"❌ Ошибка тестирования бота: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        pytest.fail(f"Ошибка тестирования бота: {e}")
 
 def test_all_modules():
     """Тестируем все модули"""
@@ -72,7 +68,7 @@ def test_all_modules():
             print(f"❌ {name}: FAILED - {e}")
     
     print(f"\n📊 Модули: {success}/{total}")
-    return success == total
+    assert success == total, "Некоторые модули не импортируются"
 
 async def main():
     """Главная функция тестирования"""
