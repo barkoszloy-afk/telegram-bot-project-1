@@ -984,9 +984,22 @@ def main():
             setup_thread.start()
             setup_thread.join()  # Ждем завершения setup
             
-            # Запускаем Flask server
+            # Запускаем Flask server в отдельном потоке
             logger.info(f"🏥 Запуск Flask server на порту {port}")
-            app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
+            def run_flask():
+                app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
+            
+            flask_thread = threading.Thread(target=run_flask, daemon=True)
+            flask_thread.start()
+            
+            # Поддержание основного потока активным
+            logger.info("🔄 Основной поток активен, Flask работает в фоне")
+            try:
+                while True:
+                    import time
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                logger.info("🛑 Получен сигнал остановки")
         else:
             logger.info("🏠 Запуск в локальном режиме")
             run_local_polling()
