@@ -102,7 +102,7 @@ def webhook(token):
         return '', 404
     
     if not application:
-        logger.error("❌ Application не инициализирован")
+        logger.error("❌ Application не инициализирован!")
         return '', 500
     
     try:
@@ -112,12 +112,22 @@ def webhook(token):
             return '', 400
             
         logger.info(f"📨 Получен webhook update: {update_data.get('update_id', 'unknown')}")
+        
+        # Логируем детали сообщения если есть
+        if 'message' in update_data:
+            msg = update_data['message']
+            user_id = msg.get('from', {}).get('id', 'unknown')
+            text = msg.get('text', 'no text')
+            logger.info(f"👤 От пользователя {user_id}: {text}")
+        
         update = Update.de_json(update_data, application.bot)
         
         # Обрабатываем update в отдельном потоке с новым event loop
         def process_update():
             try:
+                logger.info("🔄 Начинаем обработку update...")
                 asyncio.run(application.process_update(update))
+                logger.info("✅ Update обработан успешно")
             except Exception as e:
                 logger.error(f"❌ Ошибка обработки update: {e}")
                 import traceback
@@ -854,7 +864,8 @@ def main():
         if not BOT_TOKEN:
             raise ValueError("BOT_TOKEN не найден в переменных окружения")
         
-        # Создание приложения
+        # Создание приложения СНАЧАЛА
+        logger.info("🤖 Создание Telegram Application...")
         application = (
             Application.builder()
             .token(BOT_TOKEN)
@@ -864,8 +875,10 @@ def main():
             .pool_timeout(POOL_TIMEOUT)
             .build()
         )
+        logger.info("✅ Application создан успешно")
         
         # Регистрация обработчиков
+        logger.info("📋 Регистрация обработчиков...")
         # Основные команды
         application.add_handler(CommandHandler("start", start_command))
         application.add_handler(CommandHandler("help", help_command))
