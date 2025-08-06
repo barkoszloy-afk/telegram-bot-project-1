@@ -96,14 +96,20 @@ def webhook(token):
     import asyncio
     import threading
     
+    logger.info(f"🎯 Webhook вызван с токеном: {token[:10]}...")
+    
     # Проверяем токен для безопасности
     if token != BOT_TOKEN:
         logger.warning(f"❌ Неверный токен в webhook: {token[:10]}...")
         return '', 404
     
+    logger.info(f"✅ Токен проверен успешно")
+    
     if not application:
         logger.error("❌ Application не инициализирован!")
         return '', 500
+    
+    logger.info(f"✅ Application доступен: {type(application)}")
     
     try:
         update_data = request.get_json()
@@ -120,20 +126,23 @@ def webhook(token):
             text = msg.get('text', 'no text')
             logger.info(f"👤 От пользователя {user_id}: {text}")
         
+        logger.info("🔄 Создаем Update объект...")
         update = Update.de_json(update_data, application.bot)
+        logger.info(f"✅ Update создан: {update.update_id}")
         
         # Обрабатываем update в отдельном потоке с новым event loop
         def process_update():
             try:
                 logger.info("🔄 Начинаем обработку update...")
-                asyncio.run(application.process_update(update))
-                logger.info("✅ Update обработан успешно")
+                result = asyncio.run(application.process_update(update))
+                logger.info(f"✅ Update обработан успешно: {result}")
             except Exception as e:
                 logger.error(f"❌ Ошибка обработки update: {e}")
                 import traceback
                 logger.error(f"📋 Traceback: {traceback.format_exc()}")
         
         # Запускаем в отдельном потоке
+        logger.info("🚀 Запускаем обработку в отдельном потоке...")
         thread = threading.Thread(target=process_update)
         thread.daemon = True
         thread.start()
