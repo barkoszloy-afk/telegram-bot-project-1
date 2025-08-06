@@ -142,6 +142,15 @@ async def handle_chatgpt_callback(update: Update, context: ContextTypes.DEFAULT_
         elif data == "gpt_clear":
             await handle_clear_history(update, context)
             
+        elif data == "confirm_clear_history":
+            # Очищаем историю разговора
+            chatgpt_client.clear_conversation(user_id)
+            await query.edit_message_text(
+                "✅ **История очищена!**\n\n"
+                "ChatGPT теперь не помнит предыдущие сообщения.\n"
+                "Можете начать новый разговор с чистого листа! 🆕"
+            )
+            
         elif data.startswith("zodiac_gpt_"):
             # Обработка выбора знака зодиака для гороскопа
             zodiac_sign = data.replace("zodiac_gpt_", "")

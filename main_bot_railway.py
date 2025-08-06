@@ -7,7 +7,7 @@ from typing import Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, 
-    ContextTypes
+    MessageHandler, filters, ContextTypes
 )
 from flask import Flask, jsonify
 
@@ -45,7 +45,7 @@ from handlers.admin_commands import (
     logs_command, restart_command, broadcast_command, cleanup_command
 )
 from handlers.chatgpt_commands import (
-    handle_chatgpt_callback, chatgpt_command
+    handle_chatgpt_callback, chatgpt_command, process_gpt_message
 )
 
 # Flask app для health endpoint
@@ -740,6 +740,19 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"📋 Полный traceback: {traceback.format_exc()}")
         raise
 
+async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик текстовых сообщений (для ChatGPT)"""
+    try:
+        # Проверяем, предназначено ли сообщение для ChatGPT
+        if await process_gpt_message(update, context):
+            return
+        
+        # Если сообщение не обработано ChatGPT, можно добавить другую логику
+        # Например, показать подсказку или просто игнорировать
+        
+    except Exception as e:
+        logger.error(f"❌ Ошибка обработки текстового сообщения: {e}")
+
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик ошибок"""
     logger.error(f"Exception while handling an update: {context.error}")
@@ -867,6 +880,7 @@ def main():
         application.add_handler(CommandHandler("cleanup", cleanup_command))
         
         # Обработчики callback и ошибок
+        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
         application.add_handler(CallbackQueryHandler(handle_callback_query))
         application.add_error_handler(error_handler)
         
@@ -952,6 +966,7 @@ def run_local_polling():
     application.add_handler(CommandHandler("instructions", instructions_command))
     application.add_handler(CommandHandler("test", test_command))
     application.add_handler(CommandHandler("chatgpt", chatgpt_command))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
     application.add_handler(CallbackQueryHandler(handle_callback_query))
     application.add_error_handler(error_handler)
     
