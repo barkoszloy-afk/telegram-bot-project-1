@@ -20,24 +20,40 @@ def test_bot_response():
     print("🤖 Тестирование ответа бота...")
     print("=" * 50)
     
+    # Проверяем наличие токена
+    if not BOT_TOKEN:
+        import pytest
+        pytest.skip("BOT_TOKEN не установлен в переменных окружения")
+    
     # 1. Проверим информацию о боте
     print("1️⃣ Получаем информацию о боте...")
     bot_info_url = f'https://api.telegram.org/bot{BOT_TOKEN}/getMe'
-    response = requests.get(bot_info_url)
     
-    if response.status_code == 200:
-        bot_data = response.json()
-        if bot_data['ok']:
-            bot_info = bot_data['result']
-            print(f"✅ Бот активен: @{bot_info['username']}")
-            print(f"📝 Имя: {bot_info['first_name']}")
-            print(f"🆔 ID: {bot_info['id']}")
+    try:
+        response = requests.get(bot_info_url, timeout=10)
+        
+        if response.status_code == 200:
+            bot_data = response.json()
+            if bot_data['ok']:
+                bot_info = bot_data['result']
+                print(f"✅ Бот активен: @{bot_info['username']}")
+                print(f"📝 Имя: {bot_info['first_name']}")
+                print(f"🆔 ID: {bot_info['id']}")
+                assert 'username' in bot_info
+                assert 'first_name' in bot_info
+                assert 'id' in bot_info
+            else:
+                print(f"❌ Ошибка: {bot_data}")
+                import pytest
+                pytest.fail(f"Bot API returned error: {bot_data}")
         else:
-            print(f"❌ Ошибка: {bot_data}")
-            return False
-    else:
-        print(f"❌ HTTP ошибка: {response.status_code}")
-        return False
+            print(f"❌ HTTP ошибка: {response.status_code}")
+            import pytest
+            pytest.fail(f"HTTP error: {response.status_code}")
+    except requests.exceptions.ConnectionError as e:
+        print(f"⚠️ Нет соединения с Telegram API: {e}")
+        import pytest
+        pytest.skip("Telegram API недоступен из-за проблем с сетью")
     
     # 2. Проверим webhook
     print("\\n2️⃣ Проверяем webhook...")
