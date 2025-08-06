@@ -103,14 +103,28 @@ def webhook(token):
         update_data = request.get_json()
         if update_data:
             update = Update.de_json(update_data, application.bot)
-            # Запускаем обработку update в event loop
+            # Запускаем обработку update в отдельном потоке
             try:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(application.process_update(update))
-                loop.close()
+                # Используем существующий event loop или создаем новый безопасно
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        # Если loop уже запущен, создаем task
+                        import concurrent.futures
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            future = executor.submit(
+                                lambda: asyncio.run(application.process_update(update))
+                            )
+                            future.result(timeout=30)
+                    else:
+                        loop.run_until_complete(application.process_update(update))
+                except RuntimeError:
+                    # Если нет event loop, создаем новый
+                    asyncio.run(application.process_update(update))
             except Exception as e:
-                logger.error(f"Ошибка обработки webhook: {e}")
+                logger.error(f"❌ Ошибка обработки webhook: {e}")
+                import traceback
+                logger.error(f"📋 Traceback: {traceback.format_exc()}")
     
     return '', 200
 
