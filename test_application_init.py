@@ -6,6 +6,7 @@
 import sys
 import os
 import logging
+import pytest
 
 # Добавляем путь к проекту
 sys.path.append('/Users/konstantinbaranov/Desktop/eto vse ty/telegram-bot-project-1')
@@ -28,6 +29,11 @@ def test_application_creation():
         print(f"🔑 BOT_TOKEN: {BOT_TOKEN[:10] if BOT_TOKEN else None}...")
         print(f"⏱️ Timeouts: {CONNECT_TIMEOUT}, {READ_TIMEOUT}, {WRITE_TIMEOUT}, {POOL_TIMEOUT}")
         
+        # Проверяем наличие токена
+        if not BOT_TOKEN:
+            print("⚠️ BOT_TOKEN не установлен - тест пропущен")
+            pytest.skip("BOT_TOKEN не установлен в переменных окружения")
+        
         # Создаем Application как в main_bot_railway.py
         print("📱 Создаем Application...")
         application = (
@@ -43,6 +49,9 @@ def test_application_creation():
         print(f"✅ Application создан: {type(application)}")
         print(f"🤖 Bot: {application.bot}")
         print(f"📋 Handlers: {len(application.handlers)}")
+        
+        assert application is not None, "Application не создан"
+        assert application.bot is not None, "Bot не создан"
         
         # Тестируем создание Update
         from telegram import Update
@@ -72,14 +81,21 @@ def test_application_creation():
         update = Update.de_json(test_update_data, application.bot)
         print(f"✅ Update создан: {update.update_id}")
         
+        assert update is not None, "Update не создан"
+        assert update.update_id == 999999, "Update ID не соответствует"
+        
         print("🎉 ВСЕ ТЕСТЫ ПРОШЛИ УСПЕШНО!")
-        return True
         
     except Exception as e:
         print(f"❌ ОШИБКА: {e}")
         import traceback
         print(f"📋 Traceback: {traceback.format_exc()}")
-        return False
+        
+        # Особая обработка для отсутствующего токена
+        if "You must pass the token" in str(e):
+            pytest.skip(f"BOT_TOKEN не корректен или отсутствует: {e}")
+        else:
+            pytest.fail(f"Ошибка создания Application: {e}")
 
 if __name__ == "__main__":
     test_application_creation()

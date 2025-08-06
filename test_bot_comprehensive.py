@@ -4,6 +4,7 @@
 """
 import asyncio
 import json
+import pytest
 from datetime import datetime
 
 # URL для тестирования webhook
@@ -19,17 +20,20 @@ def test_webhook_accessibility():
         req = urllib.request.Request(WEBHOOK_URL.replace("/webhook/", "/"))
         response = urllib.request.urlopen(req, timeout=10)
         print(f"✅ Webhook endpoint доступен: {response.status}")
-        return True
+        assert response.status in [200, 404], f"Неожиданный статус: {response.status}"
     except urllib.error.HTTPError as e:
         if e.code == 404:
             print("✅ Webhook endpoint доступен (404 - это нормально для Telegram webhook)")
-            return True
+            # 404 это нормально для webhook endpoint
         else:
             print(f"❌ Webhook недоступен: HTTP {e.code}")
-            return False
+            pytest.fail(f"Webhook недоступен с кодом {e.code}")
+    except urllib.error.URLError as e:
+        print(f"⚠️ Нет соединения с webhook: {e}")
+        pytest.skip("Webhook недоступен из-за проблем с сетью")
     except Exception as e:
         print(f"❌ Ошибка подключения к webhook: {e}")
-        return False
+        pytest.fail(f"Ошибка подключения к webhook: {e}")
 
 def print_test_results():
     """Вывод результатов тестирования"""

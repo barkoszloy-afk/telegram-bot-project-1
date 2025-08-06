@@ -6,6 +6,7 @@
 import asyncio
 import sys
 import os
+import pytest
 
 # Добавляем путь к проекту
 sys.path.append('/Users/konstantinbaranov/Desktop/eto vse ty/telegram-bot-project-1')
@@ -14,6 +15,7 @@ from telegram import Update, User, Chat, Message
 from telegram.ext import ContextTypes
 from main_bot_railway import start_command, test_command
 
+@pytest.mark.asyncio
 async def test_commands_directly():
     """Тестируем команды напрямую без webhook"""
     print("🧪 ПРЯМОЙ ТЕСТ КОМАНД")
@@ -58,8 +60,9 @@ async def test_commands_directly():
         print(f"❌ start_command ошибка: {e}")
         import traceback
         print(f"📋 Traceback: {traceback.format_exc()}")
+        pytest.fail(f"start_command failed: {e}")
     
-    print("\\n📋 Тестируем test_command...")
+    print("\n📋 Тестируем test_command...")
     message.text = "/test"
     try:
         await test_command(update, context)
@@ -68,6 +71,10 @@ async def test_commands_directly():
         print(f"❌ test_command ошибка: {e}")
         import traceback
         print(f"📋 Traceback: {traceback.format_exc()}")
+        pytest.fail(f"test_command failed: {e}")
 
-if __name__ == "__main__":
+# Дополнительный тест для проверки без pytest
+def test_command():
+    """Функция для проверки вне pytest"""
+    print("📋 Запуск локального теста...")
     asyncio.run(test_commands_directly())
