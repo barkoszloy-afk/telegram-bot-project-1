@@ -6,6 +6,12 @@ import psutil
 import os
 from unittest.mock import patch
 
+try:
+    import pytest_benchmark  # noqa: F401
+    BENCHMARK_AVAILABLE = True
+except ImportError:
+    BENCHMARK_AVAILABLE = False
+
 # Помечаем все тесты в этом файле как медленные
 pytestmark = pytest.mark.slow
 
@@ -54,17 +60,18 @@ class TestPerformance:
             pytest.skip(f"Memory test requires valid modules: {e}")
     
     @pytest.mark.benchmark
+    @pytest.mark.skipif(not BENCHMARK_AVAILABLE, reason="pytest-benchmark not installed")
     def test_keyboard_creation_speed(self, benchmark):
         """Бенчмарк создания клавиатур"""
         try:
             from utils.keyboards import create_main_menu_keyboard
-            
+
             # Бенчмарк создания клавиатуры
             result = benchmark(create_main_menu_keyboard)
-            
+
             assert result is not None
             print("✅ Keyboard creation benchmark completed")
-            
+
         except Exception as e:
             pytest.skip(f"Benchmark test requires valid modules: {e}")
     
