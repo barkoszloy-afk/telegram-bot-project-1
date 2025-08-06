@@ -98,18 +98,22 @@ def webhook(token):
     
     logger.info(f"🎯 Webhook вызван с токеном: {token[:10]}...")
     
-    # Проверяем токен для безопасности
-    if token != BOT_TOKEN:
-        logger.warning(f"❌ Неверный токен в webhook: {token[:10]}...")
-        return '', 404
-    
-    logger.info(f"✅ Токен проверен успешно")
-    
-    if not application:
-        logger.error("❌ Application не инициализирован!")
+    try:
+        # Проверяем токен для безопасности
+        if token != BOT_TOKEN:
+            logger.warning(f"❌ Неверный токен в webhook: {token[:10]}...")
+            return '', 404
+        
+        logger.info(f"✅ Токен проверен успешно")
+        
+        if not application:
+            logger.error("❌ Application не инициализирован!")
+            return '', 500
+        
+        logger.info(f"✅ Application доступен: {type(application)}")
+    except Exception as init_error:
+        logger.error(f"❌ Ошибка в инициализации webhook: {init_error}")
         return '', 500
-    
-    logger.info(f"✅ Application доступен: {type(application)}")
     
     try:
         update_data = request.get_json()
@@ -134,8 +138,11 @@ def webhook(token):
         def process_update():
             try:
                 logger.info("🔄 Начинаем обработку update...")
-                result = asyncio.run(application.process_update(update))
-                logger.info(f"✅ Update обработан успешно: {result}")
+                if application:  # Дополнительная проверка
+                    result = asyncio.run(application.process_update(update))
+                    logger.info(f"✅ Update обработан успешно: {result}")
+                else:
+                    logger.error("❌ Application недоступен при обработке")
             except Exception as e:
                 logger.error(f"❌ Ошибка обработки update: {e}")
                 import traceback
