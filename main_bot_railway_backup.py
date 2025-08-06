@@ -16,7 +16,7 @@ from config import (
     CONNECT_TIMEOUT, READ_TIMEOUT, WRITE_TIMEOUT, POOL_TIMEOUT
 )
 from utils.database import reactions_db
-from utils.keyboards import create_main_menu_keyboard, remove_reply_keyboard
+from utils.keyboards import create_main_menu_keyboard
 from handlers.reactions import handle_reaction_callback
 from handlers.admin import (
     handle_admin_command, handle_admin_callback, 
