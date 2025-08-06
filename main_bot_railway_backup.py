@@ -166,85 +166,46 @@ metrics = {
     "errors_count": 0
 }
 
-def setup_webhook_route():
-    """Настройка webhook route после импорта конфигурации"""
-    @app.route(f'/webhook/{BOT_TOKEN}', methods=['POST'])
-    def webhook():
-        """Обработчик webhook запросов от Telegram"""
-        global metrics
-        try:
-            # Получаем JSON данные от Telegram
-            json_data = request.get_json()
-            if not json_data:
-                logger.warning("⚠️ Webhook получил пустые данные")
-                return "No data", 400
+@app.route(f'/webhook/{BOT_TOKEN}', methods=['POST'])
+def webhook():
+    """Простейший webhook endpoint"""
+    try:
+        logger.info("🎯 Webhook получил запрос")
+        
+        if not application:
+            logger.error("❌ Application не инициализирован!")
+            return '', 500
             
-            # Увеличиваем счетчик сообщений
-            metrics["messages_processed"] += 1
+        data = request.get_json()
+        if not data:
+            logger.warning("❌ Пустые данные")
+            return '', 400
             
-            # Логируем тип полученного update
-            update_type = "unknown"
-            if 'message' in json_data:
-                update_type = "message"
-                if 'text' in json_data['message']:
-                    text = json_data['message']['text']
-                    logger.info(f"📥 Webhook получил сообщение: {text}")
-                    if text.startswith('/'):
-                        metrics["commands_executed"] += 1
-            elif 'callback_query' in json_data:
-                update_type = "callback_query"
-                callback_data = json_data['callback_query'].get('data', '')
-                logger.info(f"📥 Webhook получил callback: {callback_data}")
-                metrics["callbacks_handled"] += 1
-                
-            # Создаем Update объект из JSON данных  
-            if application and application.bot:
-                update = Update.de_json(json_data, application.bot)
-                if update:
-                    # Простая синхронная обработка
-                    import threading
-                    import asyncio
-                    
-                    def run_async_update():
-                        new_loop = None
-                        try:
-                            # Создаем новый event loop для этого потока
-                            new_loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(new_loop)
-                            
-                            # Обрабатываем update
-                            if application:
-                                logger.info(f"🔄 Начинаем обработку {update_type}")
-                                new_loop.run_until_complete(application.process_update(update))
-                                logger.info(f"✅ Webhook обработал {update_type}")
-                            else:
-                                logger.error("❌ Application отсутствует при обработке")
-                            
-                        except Exception as e:
-                            metrics["errors_count"] += 1
-                            logger.error(f"❌ Ошибка async обработки: {e}")
-                            import traceback
-                            logger.error(f"Traceback: {traceback.format_exc()}")
-                        finally:
-                            # Безопасно закрываем loop
-                            if new_loop and not new_loop.is_closed():
-                                try:
-                                    new_loop.close()
-                                except:
-                                    pass
-                    
-                    # Запускаем в отдельном потоке
-                    thread = threading.Thread(target=run_async_update, daemon=True)
-                    thread.start()
-                else:
-                    logger.warning("⚠️ Не удалось создать Update объект")
-            else:
-                logger.error("❌ Application или bot не инициализированы")
-            
-            return "OK", 200
-        except Exception as e:
-            logger.error(f"❌ Ошибка обработки webhook: {e}")
-            return "Error", 500
+        logger.info(f"� Update ID: {data.get('update_id', 'unknown')}")
+        
+        # Простой ответ на /test
+        if 'message' in data:
+            msg = data['message']
+            text = msg.get('text', '')
+            if text == '/test':
+                chat_id = msg.get('chat', {}).get('id')
+                if chat_id:
+                    import requests
+                    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+                    response_data = {
+                        "chat_id": chat_id,
+                        "text": "✅ WEBHOOK РАБОТАЕТ! Получена команда /test"
+                    }
+                    resp = requests.post(url, json=response_data)
+                    logger.info(f"📤 Ответ отправлен: {resp.status_code}")
+        
+        return '', 200
+        
+    except Exception as e:
+        logger.error(f"❌ Ошибка webhook: {e}")
+        import traceback
+        logger.error(f"📋 Traceback: {traceback.format_exc()}")
+        return '', 500
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /start - показывает главное меню"""
@@ -988,9 +949,6 @@ def main():
         # Валидация конфигурации
         validate_config()
         logger.info("✅ Конфигурация успешно загружена")
-        
-        # Настройка webhook route после загрузки конфигурации
-        setup_webhook_route()
         
         # Проверка Railway окружения - используем переменные, которые автоматически создаёт Railway
         is_railway = (
