@@ -17,10 +17,9 @@ from config import (
 )
 from utils.database import reactions_db
 from utils.keyboards import create_main_menu_keyboard
-from handlers.reactions import handle_reaction_callback
+from handlers.reactions import handle_reaction
 from handlers.admin import (
-    handle_admin_command, handle_admin_callback, 
-    handle_morning_variant_callback
+    admin_command, stats_command
 )
 
 # Настройка логирования
@@ -457,15 +456,15 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         
         # Реакции на посты
         elif data.startswith("react_"):
-            await handle_reaction_callback(update, context)
+            await handle_reaction(update, context)
         
         # Утренние варианты
         elif data.startswith("morning_variant"):
-            await handle_morning_variant_callback(update, context)
+            await query.answer("🌅 Функция в разработке!")
         
         # Админские команды
         elif data.startswith("admin_"):
-            await handle_admin_callback(update, context)
+            await query.answer("👑 Админ функции в разработке!")
         
         # Зодиакальные знаки
         elif data.startswith("zodiac_"):
@@ -731,11 +730,13 @@ async def handle_motivation_selection(update: Update, context: ContextTypes.DEFA
         reaction_keyboard = get_reaction_keyboard(post_id)
         back_button = [[InlineKeyboardButton("⬅️ Назад к мотивации", callback_data='category_motivation')]]
         
-        keyboard = reaction_keyboard + back_button
+        # Объединяем клавиатуры правильно
+        all_buttons = list(reaction_keyboard.inline_keyboard) + back_button
+        keyboard = InlineKeyboardMarkup(all_buttons)
         
         await query.edit_message_text(
             full_text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
+            reply_markup=keyboard,
             parse_mode='Markdown'
         )
     else:
@@ -810,7 +811,7 @@ async def handle_relationships_selection(update: Update, context: ContextTypes.D
 async def handle_zodiac_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обрабатывает выбор знака зодиака"""
     from telegram import InlineKeyboardMarkup, InlineKeyboardButton
-    from config import ZODIAC_MAPPING
+    from config import ZODIAC_REVERSE_MAPPING
     
     query = update.callback_query
     if not query or not query.data:
@@ -825,7 +826,7 @@ async def handle_zodiac_selection(update: Update, context: ContextTypes.DEFAULT_
     english_key = query.data.replace("zodiac_", "")
     
     # Конвертируем в русское название
-    sign = ZODIAC_MAPPING.get(english_key, english_key.title())
+    sign = ZODIAC_REVERSE_MAPPING.get(english_key, english_key.title())
     
     horoscope_text = f"""
 🔮 **ГОРОСКОП ДЛЯ {sign.upper()}**
@@ -849,11 +850,12 @@ async def handle_zodiac_selection(update: Update, context: ContextTypes.DEFAULT_
     reaction_keyboard = get_reaction_keyboard(post_id)
     back_button = [[InlineKeyboardButton("⬅️ Назад к выбору знака", callback_data='esoteric_horoscope')]]
     
-    keyboard = reaction_keyboard + back_button
+    all_buttons = list(reaction_keyboard.inline_keyboard) + back_button
+    keyboard = InlineKeyboardMarkup(all_buttons)
     
     await query.edit_message_text(
         horoscope_text,
-        reply_markup=InlineKeyboardMarkup(keyboard),
+        reply_markup=keyboard,
         parse_mode='Markdown'
     )
 
@@ -1022,7 +1024,7 @@ def main():
             application.add_handler(CommandHandler("start", start_command))
             application.add_handler(CommandHandler("help", help_command))
             application.add_handler(CommandHandler("test", test_command))
-            application.add_handler(CommandHandler("admin", handle_admin_command))
+            application.add_handler(CommandHandler("admin", admin_command))
             application.add_handler(CallbackQueryHandler(handle_callback_query))
             application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
             application.add_error_handler(error_handler)
@@ -1066,7 +1068,7 @@ def run_local_polling():
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("test", test_command))
-    application.add_handler(CommandHandler("admin", handle_admin_command))
+    application.add_handler(CommandHandler("admin", admin_command))
     application.add_handler(CallbackQueryHandler(handle_callback_query))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
     application.add_error_handler(error_handler)
