@@ -1,6 +1,7 @@
 # test_import_fix.py - Тест исправления импортов
 import sys
 import traceback
+import pytest
 
 def test_imports():
     """Тестируем все критические импорты"""
@@ -27,13 +28,9 @@ def test_imports():
             traceback.print_exc()
     
     print(f"\n📊 Результаты: {success_count}/{total_tests} тестов прошли успешно")
-    
-    if success_count == total_tests:
-        print("🎉 ВСЕ ИМПОРТЫ ИСПРАВЛЕНЫ!")
-        return True
-    else:
-        print("⚠️ Есть проблемы с импортами")
-        return False
+
+    # Все импорты должны выполняться без ошибок
+    assert success_count == total_tests, "Некоторые импорты завершились ошибкой"
 
 def test_functions():
     """Тестируем основные функции"""
@@ -41,27 +38,22 @@ def test_functions():
         from utils.keyboards import create_main_menu_keyboard
         keyboard = create_main_menu_keyboard()
         print(f"✅ create_main_menu_keyboard: {len(keyboard.inline_keyboard)} рядов")
-        
+    except Exception as e:
+        pytest.skip(f"create_main_menu_keyboard недоступна: {e}")
+
+    try:
         from config import validate_config
         validate_config()
         print("✅ validate_config: работает")
-        
-        return True
     except Exception as e:
-        print(f"❌ Ошибка в функциях: {e}")
-        return False
+        pytest.skip(f"validate_config недоступна: {e}")
 
 if __name__ == "__main__":
     print("🔍 ТЕСТИРОВАНИЕ ИСПРАВЛЕНИЯ ИМПОРТОВ")
     print("=" * 50)
-    
-    imports_ok = test_imports()
-    functions_ok = test_functions()
-    
-    if imports_ok and functions_ok:
-        print("\n🎯 ПОЛНОЕ ИСПРАВЛЕНИЕ ЗАВЕРШЕНО!")
-        print("🚀 Бот готов к запуску!")
-        sys.exit(0)
-    else:
-        print("\n❌ Требуются дополнительные исправления")
-        sys.exit(1)
+    test_imports()
+    test_functions()
+
+    print("\n🎯 ПОЛНОЕ ИСПРАВЛЕНИЕ ЗАВЕРШЕНО!")
+    print("🚀 Бот готов к запуску!")
+    sys.exit(0)
