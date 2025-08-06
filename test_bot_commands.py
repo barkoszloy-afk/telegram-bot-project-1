@@ -12,6 +12,10 @@ from config import BOT_TOKEN, ADMIN_ID
 @pytest.mark.asyncio
 async def test_bot_commands():
     """Тестируем команды бота через прямую отправку"""
+    # Проверяем наличие токена
+    if not BOT_TOKEN:
+        pytest.skip("BOT_TOKEN не установлен в переменных окружения")
+        
     bot = Bot(token=BOT_TOKEN)
     
     print("🧪 ТЕСТИРОВАНИЕ КОМАНД БОТА")

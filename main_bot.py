@@ -19,7 +19,10 @@ from telegram.ext import (
 # --- Загрузка переменных окружения ---
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
-ADMIN_ID = 345470935  # ID администратора
+
+# Импорт ADMIN_ID из конфигурационного файла
+from config import ADMIN_ID
+
 CHANNEL_ID = '@eto_vse_ty'  # username канала для публикации
 
 # --- Константы и клавиатуры ---
@@ -333,33 +336,55 @@ async def handle_main_keyboard(update: Update, context: ContextTypes.DEFAULT_TYP
         await help_command(update, context)
     elif text == "Вечернее послание":
         # Обработка вечернего послания
-        image_path = os.path.expanduser(
-            "~/Desktop/images/Послание1 августа.jpg")
-        try:
-            with open(image_path, "rb") as img:
-                context.user_data['preview'] = {
-                    'type': 'photo',
-                    'file': image_path,
-                    'caption': "Вечернее послание. Выберите свой знак зодиака:"
-                }
-                context.user_data['zodiac'] = True
-                # Инициализация счетчиков реакций
-                context.user_data['reactions'] = {k: 0 for k in REACTION_NAMES}
-                context.user_data['reaction_users'] = {k: set()
-                                                       for k in REACTION_NAMES}
+        # Создаем путь к директории images внутри проекта
+        images_dir = os.path.join(os.path.dirname(__file__), "images")
+        image_path = os.path.join(images_dir, "Послание1 августа.jpg")
+        
+        # Если файл не существует, используем заглушку
+        if not os.path.exists(image_path):
+            # Отправляем текстовое сообщение вместо изображения
+            context.user_data['preview'] = {
+                'type': 'text',
+                'text': "Вечернее послание. Выберите свой знак зодиака:"
+            }
+            context.user_data['zodiac'] = True
+            # Инициализация счетчиков реакций
+            context.user_data['reactions'] = {k: 0 for k in REACTION_NAMES}
+            context.user_data['reaction_users'] = {k: set()
+                                                   for k in REACTION_NAMES}
 
-                keyboard = (ZODIAC_INLINE_KEYBOARD +
-                            get_reaction_keyboard(context.user_data['reactions']))
-                await update.message.reply_photo(
-                    img,
-                    caption="Вечернее послание. Выберите свой знак зодиака:",
-                    reply_markup=InlineKeyboardMarkup(keyboard)
-                )
-        except Exception:
-            if update.message:
-                await update.message.reply_text(
-                    "Не удалось найти или отправить изображение."
-                )
+            keyboard = (ZODIAC_INLINE_KEYBOARD +
+                        get_reaction_keyboard(context.user_data['reactions']))
+            await update.message.reply_text(
+                "Вечернее послание. Выберите свой знак зодиака:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+        else:
+            try:
+                with open(image_path, "rb") as img:
+                    context.user_data['preview'] = {
+                        'type': 'photo',
+                        'file': image_path,
+                        'caption': "Вечернее послание. Выберите свой знак зодиака:"
+                    }
+                    context.user_data['zodiac'] = True
+                    # Инициализация счетчиков реакций
+                    context.user_data['reactions'] = {k: 0 for k in REACTION_NAMES}
+                    context.user_data['reaction_users'] = {k: set()
+                                                           for k in REACTION_NAMES}
+
+                    keyboard = (ZODIAC_INLINE_KEYBOARD +
+                                get_reaction_keyboard(context.user_data['reactions']))
+                    await update.message.reply_photo(
+                        img,
+                        caption="Вечернее послание. Выберите свой знак зодиака:",
+                        reply_markup=InlineKeyboardMarkup(keyboard)
+                    )
+            except Exception:
+                if update.message:
+                    await update.message.reply_text(
+                        "Не удалось найти или отправить изображение."
+                    )
     elif text in ["Гороскоп", "Карта дня", "Доброе утро",
                   "Лунный прогноз", "Свободная публикация"]:
         # Обработка других типов постов

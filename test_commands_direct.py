@@ -9,7 +9,8 @@ import os
 import pytest
 
 # Добавляем путь к проекту
-sys.path.append('/Users/konstantinbaranov/Desktop/eto vse ty/telegram-bot-project-1')
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(current_dir)
 
 from telegram import Update, User, Chat, Message
 from telegram.ext import ContextTypes
@@ -49,8 +50,11 @@ async def test_commands_directly():
         message=message
     )
     
-    # Создаем пустой context
-    context = ContextTypes.DEFAULT_TYPE()
+    # Создаем мок context вместо пустого
+    from unittest.mock import MagicMock
+    context = MagicMock()
+    context.user_data = {}
+    context.bot = None
     
     print("📋 Тестируем start_command...")
     try:
