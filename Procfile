@@ -1,1 +1,1 @@
-web: python main_bot_railway.py
+web: python main_bot_minimal.py
