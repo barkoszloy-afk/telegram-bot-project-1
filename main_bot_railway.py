@@ -94,37 +94,47 @@ def webhook(token):
     """Webhook endpoint для Telegram"""
     from flask import request
     import asyncio
+    import threading
     
     # Проверяем токен для безопасности
     if token != BOT_TOKEN:
+        logger.warning(f"❌ Неверный токен в webhook: {token[:10]}...")
         return '', 404
     
-    if application:
+    if not application:
+        logger.error("❌ Application не инициализирован")
+        return '', 500
+    
+    try:
         update_data = request.get_json()
-        if update_data:
-            update = Update.de_json(update_data, application.bot)
-            # Запускаем обработку update в отдельном потоке
+        if not update_data:
+            logger.warning("❌ Пустые данные в webhook")
+            return '', 400
+            
+        logger.info(f"📨 Получен webhook update: {update_data.get('update_id', 'unknown')}")
+        update = Update.de_json(update_data, application.bot)
+        
+        # Обрабатываем update в отдельном потоке с новым event loop
+        def process_update():
             try:
-                # Используем существующий event loop или создаем новый безопасно
-                try:
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        # Если loop уже запущен, создаем task
-                        import concurrent.futures
-                        with concurrent.futures.ThreadPoolExecutor() as executor:
-                            future = executor.submit(
-                                lambda: asyncio.run(application.process_update(update))
-                            )
-                            future.result(timeout=30)
-                    else:
-                        loop.run_until_complete(application.process_update(update))
-                except RuntimeError:
-                    # Если нет event loop, создаем новый
-                    asyncio.run(application.process_update(update))
+                asyncio.run(application.process_update(update))
             except Exception as e:
-                logger.error(f"❌ Ошибка обработки webhook: {e}")
+                logger.error(f"❌ Ошибка обработки update: {e}")
                 import traceback
                 logger.error(f"📋 Traceback: {traceback.format_exc()}")
+        
+        # Запускаем в отдельном потоке
+        thread = threading.Thread(target=process_update)
+        thread.daemon = True
+        thread.start()
+        
+        logger.info("✅ Webhook update отправлен на обработку")
+        
+    except Exception as e:
+        logger.error(f"❌ Критическая ошибка webhook: {e}")
+        import traceback
+        logger.error(f"📋 Traceback: {traceback.format_exc()}")
+        return '', 500
     
     return '', 200
 
