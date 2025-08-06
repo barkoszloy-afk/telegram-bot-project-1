@@ -1,0 +1,29 @@
+{
+  "users": {
+    "345470935": {
+      "username": "testuser",
+      "first_name": "TestUser",
+      "first_seen": "2025-08-06",
+      "last_seen": "2025-08-06",
+      "message_count": 0,
+      "commands_used": {
+        "start": 2
+      }
+    }
+  },
+  "commands": {
+    "start": 2
+  },
+  "daily_stats": {
+    "2025-08-06": {
+      "commands": {
+        "start": 2
+      },
+      "users": [
+        345470935
+      ]
+    }
+  },
+  "total_messages": 0,
+  "start_date": "2025-08-06T10:27:22.559162"
+}

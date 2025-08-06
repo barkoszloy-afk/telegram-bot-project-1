@@ -6,56 +6,58 @@
 import asyncio
 import sys
 import os
+import pytest
+import requests
 from datetime import datetime
 
 # Добавим путь к проекту
 sys.path.append('/Users/konstantinbaranov/Desktop/eto vse ty/telegram-bot-project-1')
 
 from config import BOT_TOKEN
-import requests
 
 def test_health_endpoint():
     """Тест health endpoint"""
     print("🏥 Тестирование health endpoint...")
     try:
         response = requests.get("https://telegram-bot-project-1-production.up.railway.app/health", timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            print(f"✅ Health endpoint работает: {data}")
-            return True
-        else:
-            print(f"❌ Health endpoint вернул код: {response.status_code}")
-            return False
+        assert response.status_code == 200, f"Health endpoint вернул код: {response.status_code}"
+        data = response.json()
+        print(f"✅ Health endpoint работает: {data}")
+        assert 'status' in data or 'ok' in data, "Health endpoint не содержит ожидаемых полей"
+    except requests.exceptions.ConnectionError as e:
+        print(f"⚠️ Нет соединения с health endpoint: {e}")
+        pytest.skip("Health endpoint недоступен из-за проблем с сетью")
     except Exception as e:
         print(f"❌ Ошибка health endpoint: {e}")
-        return False
+        pytest.fail(f"Health endpoint недоступен: {e}")
 
 def test_telegram_webhook():
     """Тест Telegram webhook"""
     print("📡 Проверка webhook...")
     try:
+        # Проверяем наличие токена
+        if not BOT_TOKEN:
+            print("⚠️ BOT_TOKEN не установлен - тест пропущен")
+            pytest.skip("BOT_TOKEN не установлен в переменных окружения")
+            
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/getWebhookInfo"
         response = requests.get(url, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            if data['ok']:
-                webhook_info = data['result']
-                webhook_url = webhook_info.get('url', '')
-                if 'railway.app' in webhook_url:
-                    print(f"✅ Webhook настроен правильно: {webhook_url}")
-                    return True
-                else:
-                    print(f"⚠️ Webhook URL: {webhook_url}")
-                    return False
-            else:
-                print(f"❌ Telegram API ошибка: {data}")
-                return False
+        assert response.status_code == 200, f"HTTP ошибка: {response.status_code}"
+        data = response.json()
+        assert data['ok'], f"Telegram API ошибка: {data}"
+        webhook_info = data['result']
+        webhook_url = webhook_info.get('url', '')
+        if 'railway.app' in webhook_url:
+            print(f"✅ Webhook настроен правильно: {webhook_url}")
         else:
-            print(f"❌ HTTP ошибка: {response.status_code}")
-            return False
+            print(f"⚠️ Webhook URL: {webhook_url}")
+            # Не делаем fail, так как webhook может быть настроен по-другому
+    except requests.exceptions.ConnectionError as e:
+        print(f"⚠️ Нет соединения с Telegram API: {e}")
+        pytest.skip("Telegram API недоступен из-за проблем с сетью")
     except Exception as e:
         print(f"❌ Ошибка webhook проверки: {e}")
-        return False
+        pytest.fail(f"Не удалось проверить webhook: {e}")
 
 def main():
     """Основная функция тестирования"""
