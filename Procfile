@@ -1,1 +1,1 @@
-web: python webhook_debug.py
+web: python simple_debug.py
