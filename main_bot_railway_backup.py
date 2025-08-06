@@ -889,35 +889,10 @@ async def setup_webhook():
     """Настройка webhook для Railway"""
     global application
     
-    # Проверка токена
-    if not BOT_TOKEN:
-        raise ValueError("BOT_TOKEN не найден в переменных окружения")
-    
-    # Создание приложения с таймаутами для Railway
-    application = (
-        Application.builder()
-        .token(BOT_TOKEN)
-        .connect_timeout(CONNECT_TIMEOUT)
-        .read_timeout(READ_TIMEOUT)
-        .write_timeout(WRITE_TIMEOUT)
-        .pool_timeout(POOL_TIMEOUT)
-        .build()
-    )
-    
-    # Регистрация обработчиков команд
-    application.add_handler(CommandHandler("start", start_command))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("test", test_command))
-    application.add_handler(CommandHandler("admin", handle_admin_command))
-    
-    # Регистрация обработчика callback-запросов
-    application.add_handler(CallbackQueryHandler(handle_callback_query))
-    
-    # Регистрация обработчика текстовых сообщений
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
-    
-    # Регистрация обработчика ошибок
-    application.add_error_handler(error_handler)
+    # Application уже создан в main(), просто используем его
+    if not application:
+        logger.error("❌ Application не создан!")
+        return
     
     # Инициализация приложения
     await application.initialize()
@@ -1025,6 +1000,33 @@ def main():
         
         if is_railway:
             logger.info("🚀 Запуск в Railway режиме")
+            
+            # ВАЖНО: Создаем application СРАЗУ, до запуска Flask
+            logger.info("🤖 Создание Application...")
+            global application
+            
+            if not BOT_TOKEN:
+                raise ValueError("BOT_TOKEN не найден в переменных окружения")
+            
+            application = (
+                Application.builder()
+                .token(BOT_TOKEN)
+                .connect_timeout(CONNECT_TIMEOUT)
+                .read_timeout(READ_TIMEOUT)
+                .write_timeout(WRITE_TIMEOUT)
+                .pool_timeout(POOL_TIMEOUT)
+                .build()
+            )
+            
+            # Регистрация обработчиков команд
+            application.add_handler(CommandHandler("start", start_command))
+            application.add_handler(CommandHandler("help", help_command))
+            application.add_handler(CommandHandler("test", test_command))
+            application.add_handler(CommandHandler("admin", handle_admin_command))
+            application.add_handler(CallbackQueryHandler(handle_callback_query))
+            application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
+            application.add_error_handler(error_handler)
+            logger.info("✅ Application создан и настроен")
             
             # Запуск Flask сервера в отдельном потоке
             flask_thread = threading.Thread(target=run_flask, daemon=True)

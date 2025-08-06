@@ -1,1 +1,1 @@
-web: python simple_test.py
+web: python main_bot_railway_backup.py
